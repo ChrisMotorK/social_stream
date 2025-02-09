@@ -5,7 +5,7 @@
 	<meta content="utf-8" http-equiv="encoding" />
 	<title>Social Stream - Emotes Wall</title>
 	<meta name="title" content="Social Stream - Emotes Wall" />
-	<link rel="icon" href="./icons/favicon.ico" />
+	<link rel="icon" href="./favicon.ico" />
 	<link rel="preload" href="./thirdparty/NotoColorEmoji.ttf" as="font" type="font/ttf" crossorigin="anonymous">
 	<style>
 		:root {
@@ -349,10 +349,10 @@
 		let fontsize = parseInt(240 * scale);
 		document.documentElement.style.setProperty("--font-size", fontsize+"%");
 	}
-
+	
 	var conCon = 1;
 	var socketserver = false;
-	var serverURL = "wss://io.socialstream.ninja";
+	var serverURL = urlParams.has("localserver") ? "ws://127.0.0.1:3000" : "wss://io.socialstream.ninja";
 
 	function setupSocket(){
 		socketserver.onclose = function (){

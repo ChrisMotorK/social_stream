@@ -122,11 +122,11 @@ if (typeof(chrome.runtime)=='undefined'){
 
 
 function copyToClipboard(event) {
-	console.log(event);
+	//console.log(event);
    
 	if (event.target.parentNode.parentNode.querySelector("[data-raw] a[href]")){
 		navigator.clipboard.writeText(event.target.parentNode.querySelector("[data-raw] a[href]").href).then(function() {
-			console.log('Link copied to clipboard!');
+			//console.log('Link copied to clipboard!');
 			event.target.classList.add("flashing");
 			setTimeout(()=>{
 				event.target.classList.remove("flashing");
@@ -136,7 +136,7 @@ function copyToClipboard(event) {
 		});
 	} else if (event.target.parentNode.parentNode.parentNode.querySelector("[data-raw] a[href]")){
 		navigator.clipboard.writeText(event.target.parentNode.parentNode.parentNode.querySelector("[data-raw] a[href]").href).then(function() {
-			console.log('Link copied to clipboard!');
+			//console.log('Link copied to clipboard!');
 			event.target.classList.add("flashing");
 			setTimeout(()=>{
 				event.target.classList.remove("flashing");
@@ -146,7 +146,7 @@ function copyToClipboard(event) {
 		});
 	} else if (event.target.parentNode.parentNode.parentNode.parentNode.querySelector("[data-raw] a[href]")){
 		navigator.clipboard.writeText(event.target.parentNode.parentNode.parentNode.parentNode.querySelector("[data-raw] a[href]").href).then(function() {
-			console.log('Link copied to clipboard!');
+			//console.log('Link copied to clipboard!');
 			event.target.classList.add("flashing");
 			setTimeout(()=>{
 				event.target.classList.remove("flashing");
@@ -274,7 +274,7 @@ function isFontAvailable(fontName) {
     return widthMonospace !== widthTest;
 }
 
-function populateFontDropdown() {
+async function populateFontDropdown() {
     const fonts = ["Roboto", "Tahoma",  "Arial", "Verdana", "Helvetica", "Serif", "Trebuchet MS", "Times New Roman", "Georgia", "Garamond", "Courier New", "Brush Script MT"];
 	
     var select = document.querySelector("[data-optionparam1='font']");
@@ -435,9 +435,351 @@ function updateUsernameList(type='blacklistusers') {
   `).join('');
 }
 
+
+// Templates for different event types
+const eventTemplates = {
+  botReply: (id) => `
+    <div class="event-container">
+      <label class="switch" style="vertical-align: top; margin: 26px 0 0 0">
+        <input type="checkbox" data-setting="botReplyMessageEvent${id}">
+        <span class="slider round"></span>
+      </label>
+      <div style="display:inline-block">
+        <div class="textInputContainer" style="width: 235px">
+          <input type="text" id="botReplyMessageCommand${id}" maxlength="200" class="textInput" autocomplete="off" placeholder="Triggering command" data-textsetting="botReplyMessageCommand${id}">
+          <label for="botReplyMessageCommand${id}">&gt; Triggering command. eg: !discord</label>
+        </div>
+        <div class="textInputContainer" style="width: 235px">
+          <input type="text" id="botReplyMessageValue${id}" maxlength="200" class="textInput" autocomplete="off" placeholder="Message to respond with" data-textsetting="botReplyMessageValue${id}">
+          <label for="botReplyMessageValue${id}">&gt; Message to respond with.</label>
+        </div>
+        <div class="textInputContainer" style="width: 235px">
+          <input type="number" id="botReplyMessageTimeout${id}" class="textInput" min="0" autocomplete="off" placeholder="Timeout needed between responses" data-numbersetting="botReplyMessageTimeout${id}">
+          <label for="botReplyMessageTimeout${id}">&gt; Trigger timeout (ms)</label>
+        </div>
+        <div class="textInputContainer" style="width: 235px" title="If a source is provided, limit the response to this source. Comma-separated">
+          <input type="text" id="botReplyMessageSource${id}" class="textInput" min="0" autocomplete="off" placeholder="ie: youtube,twitch (comma separated)" data-textsetting="botReplyMessageSource${id}">
+          <label for="botReplyMessageSource${id}">&gt; Limit to specific sites</label>
+        </div>
+        <span data-translate="reply-to-all">Reply to all instead of just the source</span>
+        <label class="switch">
+          <input type="checkbox" data-setting="botReplyAll${id}">
+          <span class="slider round"></span>
+        </label>
+      </div>
+    </div>
+  `,
+  
+  chatCommand: (id) => `
+    <div class="event-container">
+      <label class="switch" style="vertical-align: top; margin: 26px 0 0 0">
+        <input type="checkbox" data-setting="chatevent${id}">
+        <span class="slider round"></span>
+      </label>
+      <div style="display:inline-block">
+        <div class="textInputContainer" style="width: 235px">
+          <input type="text" id="chatcommand${id}" class="textInput" autocomplete="off" placeholder="!someevent${id}" data-textsetting="chatcommand${id}">
+          <label for="chatcommand${id}">&gt; Chat Command</label>
+        </div>
+        <div class="textInputContainer" style="width: 235px">
+          <input type="text" id="chatwebhook${id}" class="textInput" autocomplete="off" placeholder="Provide full URL" data-textsetting="chatwebhook${id}">
+          <label for="chatwebhook${id}">&gt; Webhook URL</label>
+        </div>
+        <div class="textInputContainer" style="width: 235px">
+          <input type="number" id="chatcommandtimeout${id}" class="textInput" min="0" autocomplete="off" placeholder="Timeout between triggers" data-numbersetting="chatcommandtimeout${id}">
+          <label for="chatcommandtimeout${id}">&gt; Trigger Timeout (ms)</label>
+        </div>
+      </div>
+    </div>
+  `,
+  
+  timedMessage: (id) => `
+    <div class="event-container">
+      <label class="switch" style="vertical-align: top; margin: 26px 0 0 0">
+        <input type="checkbox" data-setting="timemessageevent${id}">
+        <span class="slider round"></span>
+      </label>
+      <div style="display:inline-block">
+        <div class="textInputContainer" style="width: 235px">
+          <input type="text" id="timemessagecommand${id}" maxlength="200" class="textInput" autocomplete="off" placeholder="Message to send to chat at an interval" data-textsetting="timemessagecommand${id}">
+          <label for="timemessagecommand${id}">&gt; Message to broadcast</label>
+        </div>
+        <div class="textInputContainer" style="width: 235px">
+          <input type="number" id="timemessageinterval${id}" class="textInput" value="15" min="0" autocomplete="off" title="Interval offset in minutes; 0 to issue just once." data-numbersetting="timemessageinterval${id}">
+          <label for="timemessageinterval${id}">&gt; Interval between broadcasts in minutes</label>
+        </div>
+        <div class="textInputContainer" style="width: 235px">
+          <input type="number" min="0" max="127" id="timemessageoffset${id}" value="0" min="0" class="textInput" autocomplete="off" title="Starting offset in minutes" data-numbersetting="timemessageoffset${id}">
+          <label for="timemessageoffset${id}">&gt; Starting time offset</label>
+        </div>
+      </div>
+    </div>
+  `,
+  
+  midiCommand: (id) => `
+    <div class="event-container">
+      <label class="switch" style="vertical-align: top; margin: 26px 0 0 0">
+        <input type="checkbox" data-setting="midievent${id}">
+        <span class="slider round"></span>
+      </label>
+      <div style="display:inline-block">
+        <div class="textInputContainer" style="width: 235px">
+          <input type="text" id="midicommand${id}" class="textInput" autocomplete="off" placeholder="!someevent${id}" data-textsetting="midicommand${id}">
+          <label for="midicommand${id}">&gt; Triggering !command</label>
+        </div>
+        <div class="textInputContainer" style="width: 235px">
+          <input type="number" id="midinote${id}" class="textInput" autocomplete="off" placeholder="MIDI Note that will be triggered; 127-velocity" data-numbersetting="midinote${id}">
+          <label for="midinote${id}">MIDI Note to Trigger</label>
+        </div>
+		<div class="textInputContainer" style="width: 235px">
+          <select id="mididevice${id}" class="textInput" autocomplete="off" placeholder="MIDI default device used if left unspecified" data-optionsetting="mididevice${id}"></select>
+          <label for="mididevice${id}">MIDI Device</label>
+        </div>
+      </div>
+    </div>
+  `,
+};
+
+
+function initializeInputHandlers(container) {
+  container.querySelectorAll('input[type="checkbox"]').forEach(input => {
+    input.onchange = updateSettings;
+  });
+
+  container.querySelectorAll('input[type="text"], input[type="number"], input[type="password"], select').forEach(input => {
+    input.onchange = updateSettings;
+  });
+
+  container.querySelectorAll('input[type="text"][class*="instant"]').forEach(input => {
+    input.oninput = updateSettings;
+  });
+}
+
+  const patterns = {
+	botReply: {
+	  prefixes: ['botReplyMessageEvent', 'botReplyMessageCommand', 'botReplyMessageValue', 'botReplyMessageTimeout', 'botReplyMessageSource', 'botReplyAll'],
+	  type: 'botReply'
+	},
+	chatCommand: {
+	  prefixes: ['chatevent', 'chatcommand', 'chatwebhook', 'chatcommandtimeout'],
+	  type: 'chatCommand'
+	},
+	timedMessage: {
+	  prefixes: ['timemessageevent', 'timemessagecommand', 'timemessageinterval', 'timemessageoffset'],
+	  type: 'timedMessage'
+	},
+	midiCommand: {
+	  prefixes: ['midievent', 'midicommand', 'midinote', 'mididevice'],
+	  type: 'midiCommand'
+	},
+  };
+  
+function findExistingEvents(eventType, response) {
+  const events = new Set();
+  const settings = response?.settings || {};
+  const pattern = patterns[eventType];
+  if (!pattern) return [];
+
+  // Check all possible settings for this event type
+  Object.keys(settings).forEach(key => {
+	pattern.prefixes.forEach(prefix => {
+	  if (key.startsWith(prefix)) {
+		const id = key.replace(prefix, '');
+		if (settings[key]?.setting !== undefined || 
+			settings[key]?.textsetting !== undefined || 
+			settings[key]?.optionsetting !== undefined || 
+			settings[key]?.numbersetting !== undefined) {
+		  events.add(parseInt(id));
+		}
+	  }
+	});
+  });
+
+  return Array.from(events).sort((a, b) => a - b);
+}
+
+function initializeTabSystem(containerId, eventType, existingEventIds = [], response = null) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  
+  // Create tab container structure
+  const tabSystem = document.createElement('div');
+  tabSystem.className = 'tab-container';
+  tabSystem.innerHTML = `
+    <div class="tab-header">
+      <button class="add-new-tab">+ Add New</button>
+    </div>
+    <div class="tab-content-container"></div>
+  `;
+  
+  container.innerHTML = '';
+  container.appendChild(tabSystem);
+
+  const tabHeader = tabSystem.querySelector('.tab-header');
+  const contentContainer = tabSystem.querySelector('.tab-content-container');
+  
+  // Find all existing events from settings
+  const activeEvents = findExistingEvents(eventType, response);
+  const deletedIds = new Set();
+  let tabCount = activeEvents.length > 0 ? Math.max(...activeEvents) : 0;
+
+	function createNewTab(tabId) {
+	  const tabButton = document.createElement('div');
+	  tabButton.className = 'tab-button';
+	  tabButton.setAttribute('data-tab', tabId);
+	  tabButton.innerHTML = `Event ${tabId}<span class="delete-tab">&times;</span>`;
+	  tabHeader.insertBefore(tabButton, tabHeader.lastChild);
+
+	  const tabContent = document.createElement('div');
+	  tabContent.className = 'tab-content';
+	  tabContent.setAttribute('data-tab', tabId);
+	  tabContent.innerHTML = eventTemplates[eventType](tabId);
+
+	  // Only initialize with settings if it's an existing tab being restored
+	  if (response?.settings && activeEvents.includes(tabId)) {
+		tabContent.querySelectorAll('input,select').forEach(input => {
+		  const settingKey = input.getAttribute('data-setting') || 
+							input.getAttribute('data-textsetting') || 
+							input.getAttribute('data-optionsetting') || 
+							input.getAttribute('data-numbersetting');
+		  
+		  if (settingKey && response.settings[settingKey]) {
+			if (input.type === 'checkbox') {
+			  input.checked = response.settings[settingKey]?.setting || false;
+			} else if (input.type === 'text' || input.type === 'number') {
+			  input.value = response.settings[settingKey]?.textsetting || response.settings[settingKey]?.numbersetting || '';
+			} else if (input.tagName === 'SELECT') {
+			  const value = response.settings[settingKey]?.optionsetting;
+			  if (value) {
+				input.value = value;
+				// Ensure MIDI device exists in dropdown
+				if (settingKey.startsWith('mididevice') && !Array.from(input.options).some(opt => opt.value === value)) {
+				  const option = document.createElement('option');
+				  option.value = value;
+				  option.textContent = value;
+				  option.style.color = 'red';
+				  input.appendChild(option);
+				  option.selected = true;
+				}
+			  }
+			}
+		  }
+		});
+	  }
+
+	  contentContainer.appendChild(tabContent);
+	  initializeInputHandlers(tabContent);
+	  return { button: tabButton, content: tabContent };
+	}
+
+  tabSystem.querySelector('.add-new-tab').addEventListener('click', () => {
+    // Reuse the lowest available deleted ID, or increment tabCount
+    let newTabId;
+    if (deletedIds.size > 0) {
+      newTabId = Math.min(...deletedIds);
+      deletedIds.delete(newTabId);
+    } else {
+      newTabId = ++tabCount;
+    }
+    const { button, content } = createNewTab(newTabId);
+    activateTab(newTabId);
+  });
+
+  tabSystem.addEventListener('click', (e) => {
+    const tabButton = e.target.closest('.tab-button');
+    if (tabButton) {
+      const deleteBtn = e.target.closest('.delete-tab');
+      if (deleteBtn) {
+        const tabId = tabButton.getAttribute('data-tab');
+        deleteTab(tabId);
+      } else {
+        const tabId = tabButton.getAttribute('data-tab');
+        activateTab(tabId);
+      }
+    }
+  });
+
+  function activateTab(tabId) {
+    tabSystem.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+    tabSystem.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+    
+    tabSystem.querySelector(`.tab-button[data-tab="${tabId}"]`)?.classList.add('active');
+    tabSystem.querySelector(`.tab-content[data-tab="${tabId}"]`)?.classList.add('active');
+  }
+
+	function deleteTab(tabId) {
+	  const button = tabSystem.querySelector(`.tab-button[data-tab="${tabId}"]`);
+	  const content = tabSystem.querySelector(`.tab-content[data-tab="${tabId}"]`);
+	  
+	  deletedIds.add(parseInt(tabId));
+	  
+	  if (button.classList.contains('active')) {
+		const nextTab = button.nextElementSibling;
+		const prevTab = button.previousElementSibling;
+		if (nextTab && !nextTab.classList.contains('add-new-tab')) {
+		  activateTab(nextTab.getAttribute('data-tab'));
+		} else if (prevTab) {
+		  activateTab(prevTab.getAttribute('data-tab'));
+		}
+	  }
+
+	  // Clear all associated settings for this tab ID
+	  const settingsToDelete = [];
+	  const prefixes = patterns[eventType].prefixes;
+	  
+	  content.querySelectorAll('input').forEach(input => {
+		const settingKey = input.getAttribute('data-setting') || 
+						  input.getAttribute('data-textsetting') || 
+						  input.getAttribute('data-optionsetting') || 
+						  input.getAttribute('data-numbersetting');
+		
+		if (settingKey) {
+		  // Remove from response settings if they exist
+		  if (response?.settings?.[settingKey]) {
+			delete response.settings[settingKey];
+		  }
+		  
+		  // Clear the input value
+		  if (input.type === 'checkbox') {
+			input.checked = false;
+		  } else {
+			input.value = '';
+		  }
+		  
+		  // Trigger change event to update settings
+		  input.dispatchEvent(new Event('change'));
+		}
+	  });
+
+	  button.remove();
+	  content.remove();
+	}
+  
+ if (activeEvents.length > 0) {
+    activeEvents.forEach((eventId, index) => {
+      const newTab = createNewTab(eventId);
+      if (index === 0) {
+        newTab.button.classList.add('active');
+        newTab.content.classList.add('active');
+      }
+    });
+  } else {
+    // Create initial tab if no existing events
+    const newTab = createNewTab(1);
+    newTab.button.classList.add('active');
+    newTab.content.classList.add('active');
+    tabCount = 1;
+  }
+}
+
 document.addEventListener("DOMContentLoaded", async function(event) {
 	if (ssapp){
 		document.getElementById("disableButtonText").innerHTML = "🔌 Services Loading";
+		
+		const basePath = decodeURIComponent(urlParams.get('basePath') || '');
+		if (basePath){
+			document.getElementById("chathistory").href = basePath  + "chathistory.html";
+		}
 	} else {
 		document.getElementById("disableButtonText").innerHTML = "🔌 Extension Loading";
 	}
@@ -528,12 +870,14 @@ document.addEventListener("DOMContentLoaded", async function(event) {
 		console.error(e);
 	}
 	
-	populateFontDropdown();
-	PollManager.init();
+	setTimeout(function(){
+		populateFontDropdown(); 
+		PollManager.init();
+	},1000);
 	
 	// populate language drop down
 	if (speechSynthesis){
-		function populateVoices() {
+		async function populateVoices() {
 			const voices = createUniqueVoiceIdentifiers(speechSynthesis.getVoices());
 			
 			voices.sort((a, b) => {
@@ -562,8 +906,24 @@ document.addEventListener("DOMContentLoaded", async function(event) {
 				}
 			});
 			
-			var voicesDropdown = document.getElementById('languageSelect2');
-			var existingOptions = Array.from(voicesDropdown.options).map(option => option.textContent);
+			voicesDropdown = document.getElementById('languageSelect2');
+			existingOptions = Array.from(voicesDropdown.options).map(option => option.textContent);
+
+			voices.forEach(voice => {
+				const voiceText = voice.name + ' (' + voice.lang + ')';
+
+				if (!existingOptions.includes(voiceText)) {
+					const option = document.createElement('option');
+					option.textContent = voiceText;
+					option.value = voice.code;
+					option.setAttribute('data-lang', voice.lang);
+					option.setAttribute('data-name', voice.name);
+					voicesDropdown.appendChild(option);
+				}
+			});
+			
+			voicesDropdown = document.getElementById('systemLanguageSelect10');
+			existingOptions = Array.from(voicesDropdown.options).map(option => option.textContent);
 
 			voices.forEach(voice => {
 				const voiceText = voice.name + ' (' + voice.lang + ')';
@@ -758,87 +1118,6 @@ document.addEventListener("DOMContentLoaded", async function(event) {
 		}
 	});
 
-	
-	for (var i=1;i<=20;i++){
-		var chat = document.createElement("div");
-		chat.innerHTML = '<label class="switch" style="vertical-align: top; margin: 26px 0 0 0">\
-				<input type="checkbox" data-setting="chatevent'+ i +'">\
-				<span class="slider round"></span>\
-			</label>\
-			<div style="display:inline-block">\
-				<div class="textInputContainer" style="width: 235px">\
-					<input type="text" id="chatcommand'+ i +'" class="textInput" autocomplete="off" placeholder="!someevent'+ i +'" data-textsetting="chatcommand'+ i +'">\
-					<label for="chatcommand'+ i +'">&gt; Chat Command</label>\
-				</div>\
-				<div class="textInputContainer" style="width: 235px">\
-					<input type="text" id="chatwebhook'+ i +'" class="textInput" autocomplete="off" placeholder="Provide full URL" data-textsetting="chatwebhook'+ i +'">\
-					<label for="chatwebhook'+ i +'">&gt; Webhook URL</label>\
-				</div>\
-				<div class="textInputContainer" style="width: 235px">\
-					<input type="number" id="chatcommandtimeout'+ i +'" class="textInput" min="0" autocomplete="off" placeholder="Timeout between triggers" data-numbersetting="chatcommandtimeout'+ i +'">\
-					<label for="chatcommandtimeout'+ i +'">&gt; Trigger Timeout (ms)</label></div>\
-				</div>\
-			</div>';
-		document.getElementById("chatCommands").appendChild(chat);
-	}
-	
-
-	for (var i=1;i<=10;i++){
-		var chat = document.createElement("div");
-		chat.innerHTML = '<label class="switch" style="vertical-align: top; margin: 26px 0 0 0">\
-				<input type="checkbox" data-setting="timemessageevent'+ i +'">\
-				<span class="slider round"></span>\
-			</label>\
-			<div style="display:inline-block">\
-				<div class="textInputContainer" style="width: 235px">\
-					<input type="text" id="timemessagecommand'+ i +'" maxlength="200" class="textInput" autocomplete="off" placeholder="Message to send to chat at an interval" data-textsetting="timemessagecommand'+ i +'">\
-					<label for="timemessagecommand'+ i +'">&gt; Message to broadcast</label>\
-				</div>\
-				<div class="textInputContainer" style="width: 235px">\
-					<input type="number" id="timemessageinterval'+ i +'" class="textInput" value="15" min="0"  autocomplete="off" title="Interval offset in minutes; 0 to issue just once." data-numbersetting="timemessageinterval'+ i +'">\
-					<label for="timemessageinterval'+ i +'">&gt; Interval between broadcasts in minutes</label>\
-				</div>\
-				<div class="textInputContainer" style="width: 235px">\
-					<input type="number" id="timemessageoffset'+ i +'" value="0" min="0" class="textInput" autocomplete="off" title="Starting offset in minutes" data-numbersetting="timemessageoffset'+ i +'">\
-					<label for="timemessageoffset'+ i +'">&gt; Starting time offset</label>\
-				</div>\
-			</div>';
-		document.getElementById("timedMessages").appendChild(chat);
-	}
-	
-	for (var i=1;i<=10;i++){
-		var chat = document.createElement("div");
-		chat.innerHTML = '<label class="switch" style="vertical-align: top; margin: 26px 0 0 0">\
-				<input type="checkbox" data-setting="botReplyMessageEvent'+ i +'">\
-				<span class="slider round"></span>\
-			</label>\
-			<div style="display:inline-block">\
-				<div class="textInputContainer" style="width: 235px">\
-					<input type="text" id="botReplyMessageCommand'+ i +'" maxlength="200" class="textInput" autocomplete="off" placeholder="Triggering command" data-textsetting="botReplyMessageCommand'+ i +'">\
-					<label for="botReplyMessageCommand'+ i +'">&gt; Triggering command. eg: !discord</label>\
-				</div>\
-				<div class="textInputContainer" style="width: 235px">\
-					<input type="text" id="botReplyMessageValue'+ i +'" maxlength="200" class="textInput" autocomplete="off" placeholder="Message to respond with" data-textsetting="botReplyMessageValue'+ i +'">\
-					<label for="botReplyMessageValue'+ i +'">&gt; Message to respond with.</label>\
-				</div>\
-				<div class="textInputContainer" style="width: 235px">\
-					<input type="number" id="botReplyMessageTimeout'+ i +'" class="textInput" min="0" autocomplete="off" placeholder="Timeout needed between responses" data-numbersetting="botReplyMessageTimeout'+ i +'">\
-					<label for="botReplyMessageTimeout'+ i +'">&gt; Trigger timeout (ms)</label>\
-				</div>\
-				<div class="textInputContainer" style="width: 235px" title="If a source is provided, limit the response to this source. Comma-separated" >\
-					<input type="text" id="botReplyMessageSource'+ i +'" class="textInput" min="0" autocomplete="off" placeholder="ie: youtube,twitch (comma separated)" data-textsetting="botReplyMessageSource'+ i +'">\
-					<label for="botReplyMessageSource'+ i +'">&gt; Limit to specific sites</label>\
-				</div>\
-				<span data-translate="reply-to-all">\
-					Reply to all instead of just the source\
-				</span>\
-				<label class="switch">\
-					<input type="checkbox" data-setting="botReplyAll'+ i +'">\
-					<span class="slider round"></span>\
-				</label>\
-			</div>';
-		document.getElementById("botReplyMessages").appendChild(chat);
-	}
 	//botReplyAll
 	var iii = document.querySelectorAll("input[type='checkbox']");
 	for (var i=0;i<iii.length;i++){
@@ -907,7 +1186,7 @@ document.addEventListener("DOMContentLoaded", async function(event) {
 					});
 				}
 			} else {
-				console.log(msg);
+				//console.log(msg);
 				chrome.runtime.sendMessage(msg, function (response) { // actions have callbacks? maybe
 					log("ignore callback for this action");
 					// update(response);  
@@ -947,7 +1226,7 @@ document.addEventListener("DOMContentLoaded", async function(event) {
 		});
 	};
 
-	checkVersion();
+	checkVersion(); 
 	
 	let hideLinks = false;
 	document.querySelectorAll("input[data-setting='hideyourlinks']").forEach(x=>{
@@ -959,7 +1238,194 @@ document.addEventListener("DOMContentLoaded", async function(event) {
 	if (hideLinks){
 		document.body.classList.add("hidelinks");
 	} 
+	
+	// Function to dynamically load the WebMidi script
+    async function loadWebMidiScript(callback) {
+        const script = document.createElement("script");
+        script.type = "text/javascript";
+        script.src = "./thirdparty/webmidi3.js";
+        script.onload = callback; // Run the callback once the script loads
+        script.onerror = () => {
+            console.error("Failed to load WebMidi script.");
+        };
+        document.body.appendChild(script);
+    }
+    // Function to initialize the MIDI dropdown logic
+    async function initializeMIDIDropdown() {
+		try {
+			WebMidi.enable().then(() => {
+                console.log("WebMidi enabled!");
+
+                const midiDropdown = document.getElementById("midiDeviceSelect");
+				const currentDevice = midiDropdown.value;
+				
+                function populateMIDIDevices() {
+                    midiDropdown.innerHTML = "";
+
+                    const defaultOption = document.createElement("option");
+                    defaultOption.textContent = "Select MIDI Device";
+                    defaultOption.value = "";
+                    midiDropdown.appendChild(defaultOption);
+
+					let deviceFound = false;
+                    WebMidi.outputs.forEach((output) => {
+                        const option = document.createElement("option");
+                        option.textContent = output.name; 
+                        option.value = output.name;
+                        midiDropdown.appendChild(option);
+						if (currentDevice && (currentDevice === option.value)){
+							option.selected = true;
+							deviceFound = true;
+						}
+                    });
+					if (!deviceFound && currentDevice){
+						const option = document.createElement("option");
+                        option.textContent = currentDevice;
+                        option.value = currentDevice;
+                        midiDropdown.appendChild(option);
+						option.selected = true;
+						option.style.color = "red";
+					}
+					
+					document.querySelectorAll("select[data-optionsetting^='mididevice']").forEach(dropdown => {
+						const currentValue = dropdown.value;
+						const originalHTML = dropdown.innerHTML;
+						dropdown.innerHTML = "";
+
+						// Add default option
+						const defaultOption = document.createElement("option");
+						defaultOption.textContent = "Default MIDI Device";
+						defaultOption.value = "";
+						dropdown.appendChild(defaultOption);
+
+						let deviceFound = false;
+						WebMidi.outputs.forEach((output) => {
+						  const option = document.createElement("option");
+						  option.textContent = output.name;
+						  option.value = output.name;
+						  dropdown.appendChild(option);
+						  if (currentValue === option.value) {
+							option.selected = true;
+							deviceFound = true;
+						  }
+						});
+
+						// If the stored device isn't found, add it as disconnected
+						if (!deviceFound && currentValue && currentValue !== "") {
+						  const option = document.createElement("option");
+						  option.textContent = currentValue;
+						  option.value = currentValue;
+						  option.style.color = "red";
+						  option.selected = true;
+						  dropdown.appendChild(option);
+						}
+					  });
+                }
+
+                populateMIDIDevices();
+
+                WebMidi.addListener("connected", populateMIDIDevices);
+                WebMidi.addListener("disconnected", populateMIDIDevices);
+
+            })
+            .catch((e) => {
+                console.error("Failed to enable WebMidi: ", e);
+            });
+		} catch(e){
+			console.error(e);
+		}
+    }
+    // Dynamically load the WebMidi script and initialize the dropdown logic
+	try {
+		setTimeout(function(){
+			loadWebMidiScript(initializeMIDIDropdown);
+		},3000);
+	} catch(e){ console.error(e);}
 });
+
+let tabsInitialized = false;
+
+function createTabsFromSettings(response) {
+  if (!response || !response.settings) return;
+
+  // Clear existing tabs first
+  const containers = ['botReplyMessages', 'chatCommands', 'timedMessages', 'midiCommands'];
+  containers.forEach(containerId => {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    container.innerHTML = ''; // Clear existing content
+  });
+
+  // Track existing events for each type
+  const existingEvents = {
+    botReply: new Set(),
+    chatCommand: new Set(),
+    timedMessage: new Set(),
+	midiCommand: new Set()
+  };
+
+  // Scan settings for event configurations
+  Object.keys(response.settings).forEach(key => {
+    // Bot Reply Messages
+    if (key.startsWith('botReplyMessageEvent')) {
+      const id = key.replace('botReplyMessageEvent', '');
+      if (response.settings[key].setting || 
+          response.settings[`botReplyMessageCommand${id}`]?.textsetting ||
+          response.settings[`botReplyMessageValue${id}`]?.textsetting) {
+        existingEvents.botReply.add(parseInt(id));
+      }
+    }
+    // Chat Commands
+    else if (key.startsWith('chatevent')) {
+      const id = key.replace('chatevent', '');
+      if (response.settings[key].setting || 
+          response.settings[`chatcommand${id}`]?.textsetting ||
+          response.settings[`chatwebhook${id}`]?.textsetting) {
+        existingEvents.chatCommand.add(parseInt(id));
+      }
+    }
+    // Timed Messages
+    else if (key.startsWith('timemessageevent')) {
+      const id = key.replace('timemessageevent', '');
+      if (response.settings[key].setting || response.settings[`timemessagecommand${id}`]?.textsetting) {
+        existingEvents.timedMessage.add(parseInt(id));
+      }
+    }
+	// MIDI Messages
+	else if (key.startsWith('midicommandevent')) {
+      const id = key.replace('midicommandevent', '');
+      if (response.settings[key].setting || response.settings[`midicommand${id}`]?.textsetting || response.settings[`midinote${id}`]?.numbersetting || response.settings[`mididevice${id}`]?.optionsetting){
+        existingEvents.midiCommand.add(parseInt(id));
+      }
+    }
+  });
+
+  // Initialize tab systems with found events
+  if (existingEvents.botReply.size > 0) {
+    initializeTabSystem('botReplyMessages', 'botReply', Array.from(existingEvents.botReply), response);
+  } else {
+    initializeTabSystem('botReplyMessages', 'botReply', [1], response);
+  }
+
+  if (existingEvents.chatCommand.size > 0) {
+    initializeTabSystem('chatCommands', 'chatCommand', Array.from(existingEvents.chatCommand), response);
+  } else {
+    initializeTabSystem('chatCommands', 'chatCommand', [1], response);
+  }
+  
+  if (existingEvents.timedMessage.size > 0) {
+    initializeTabSystem('timedMessages', 'timedMessage', Array.from(existingEvents.timedMessage), response);
+  } else {
+    initializeTabSystem('timedMessages', 'timedMessage', [1], response);
+  }
+  
+  if (existingEvents.midiCommand.size > 0) {
+    initializeTabSystem('midiCommands', 'midiCommand', Array.from(existingEvents.midiCommand), response);
+  } else {
+    initializeTabSystem('midiCommands', 'midiCommand', [1], response);
+  }
+}
+
 var streamID = false;
 var lastResponse = false;
 
@@ -976,10 +1442,15 @@ function update(response, sync=true){
 			lastResponse = response;
 			
 			streamID = true;
+			
 			var password = "";
 			if ('password' in response && response.password){
 				password = "&password="+response.password;
 			}
+			
+			var localServer = urlParams.has("localserver") ? "&localserver" : "";
+			
+			password += localServer;
 			
 			let hideLinks = false;
 			document.querySelectorAll("input[data-setting='hideyourlinks']").forEach(x=>{
@@ -993,7 +1464,6 @@ function update(response, sync=true){
 			} else {
 				document.body.classList.remove("hidelinks");
 			}
-			
 			
 			document.getElementById("sessionid").value = response.streamID;
 			document.getElementById("sessionpassword").value = response.password || "";
@@ -1011,7 +1481,10 @@ function update(response, sync=true){
 			document.getElementById("hypemeter").raw = baseURL+"hype.html?session="+response.streamID+password;
 			
 			document.getElementById("waitlist").innerHTML = hideLinks ? "Click to open link" : "<a target='_blank' id='waitlistlink' href='"+baseURL+"waitlist.html?session="+response.streamID+password+"'>"+baseURL+"waitlist.html?session="+response.streamID+password+"</a>";
-			document.getElementById("waitlist").raw = baseURL+"waitlist.html?session="+response.streamID+password;
+			document.getElementById("waitlist").raw = baseURL+"waitlist.html?session="+response.streamID+password
+			
+			document.getElementById("tipjar").innerHTML = hideLinks ? "Click to open link" : "<a target='_blank' id='tipjarlink' href='"+baseURL+"waitlist.html?session="+response.streamID+password+"'>"+baseURL+"tipjar.html?session="+response.streamID+password+"</a>";
+			document.getElementById("tipjar").raw = baseURL+"tipjar.html?session="+response.streamID+password;
 			
 			document.getElementById("ticker").innerHTML = hideLinks ? "Click to open link" : "<a target='_blank' id='tickerlink' href='"+baseURL+"ticker.html?session="+response.streamID+password+"'>"+baseURL+"ticker.html?session="+response.streamID+password+"</a>";
 			document.getElementById("ticker").raw = baseURL+"ticker.html?session="+response.streamID+password;
@@ -1025,19 +1498,53 @@ function update(response, sync=true){
 			document.getElementById("battle").innerHTML = hideLinks ? "Click to open link" : "<a target='_blank' id='battlelink' href='"+baseURL+"battle.html?session="+response.streamID+password+"'>"+baseURL+"battle.html?session="+response.streamID+password+"</a>";
 			document.getElementById("battle").raw = baseURL+"battle.html?session="+response.streamID+password;
 			
-			document.getElementById("chatbotlink").outerHTML = "<a target='_blank' style='color:lightblue;' id='chatbotlink' href='"+baseURL+"chatbot.html?session="+response.streamID+password+"'>[LINK TO CHAT BOT]</a>";
+			document.getElementById("chatbot").innerHTML = hideLinks ? "Click to open link" : "<a target='_blank' id='chatbotlink' href='"+baseURL+"bot.html?session="+response.streamID+password+"'>"+baseURL+"chatbot.html?session="+response.streamID+password+"</a>";
+			document.getElementById("chatbot").raw = baseURL+"bot.html?session="+response.streamID+password;
+			
+			document.getElementById("cohost").innerHTML = hideLinks ? "Click to open link" : "<a target='_blank' id='cohostlink' href='"+baseURL+"cohost.html?session="+response.streamID+password+"'>"+baseURL+"cohost.html?session="+response.streamID+password+"</a>";
+			document.getElementById("cohost").raw = baseURL+"cohost.html?session="+response.streamID+password;
+			
+			document.getElementById("privatechatbot").innerHTML = hideLinks ? "Click to open link" : "<a target='_blank' style='color:lightblue;'  id='privatechatbotlink' href='"+baseURL+"chatbot.html?session="+response.streamID+password+"'>"+baseURL+"chatbot.html?session="+response.streamID+password+"</a>";
+			document.getElementById("privatechatbot").raw = baseURL+"chatbot.html?session="+response.streamID+password;
 			
 			document.getElementById("custom-gif-commands").innerHTML = hideLinks ? "Click to open link" : "<a target='_blank' id='custom-gif-commands-link' href='"+baseURL+"gif.html?session="+response.streamID+password+"'>"+baseURL+"gif.html?session="+response.streamID+password+"</a>";
 			document.getElementById("custom-gif-commands").raw = baseURL+"gif.html?session="+response.streamID+password;
 			
 			document.getElementById("remote_control_url").href = baseURL+"sampleapi.html?session="+response.streamID+password;
 			
-			document.getElementById("botlink").href = baseURL+"bot.html?session="+response.streamID+password;
-			
-		
 			hideLinks = false;
 			
 			if ('settings' in response){
+				
+				if (!response.settings?.ttsProvider?.optionsetting){
+					let ttsService = "system";
+					if (response.settings?.ttskey?.textparam1){ttsService = "google";}
+					else if (response.settings?.googleAPIKey?.textparam1){ttsService = "google";}
+					else if (response.settings?.elevenlabskey?.textparam1){ttsService = "elevenlabs";}
+					else if (response.settings?.speechifykey?.textparam1){ttsService = "speechifykey";}
+					if (!response.settings.ttsProvider){
+						response.settings.ttsProvider = {}
+					}
+					response.settings.ttsProvider.optionsetting = ttsService;
+					//console.log("ttsService: "+ttsService);
+					//console.log(response);
+				}
+				
+				if (!response.settings?.ttsProvider10?.optionsetting10){
+					let ttsService = "system";
+					if (response.settings?.ttskey?.textparam10){ttsService = "google";}
+					else if (response.settings?.googleAPIKey10?.textparam10){ttsService = "google";}
+					else if (response.settings?.elevenlabskey10?.textparam10){ttsService = "elevenlabs";}
+					else if (response.settings?.speechifykey10?.textparam10){ttsService = "speechifykey";}
+					if (!response.settings.ttsProvider10){
+						response.settings.ttsProvider10 = {}
+					}
+					response.settings.ttsProvider10.optionsetting10 = ttsService;
+					//console.log("ttsService: "+ttsService);
+					//console.log(response);
+				}
+					
+					
 				for (var key in response.settings){
 					try {
 						if (key === "midiConfig"){
@@ -1159,7 +1666,34 @@ function update(response, sync=true){
 								var ele = document.querySelector("input[data-param6='"+key+"']");
 								if (ele){
 									ele.checked = response.settings[key].param6;
-									updateSettings(ele, sync);
+									if (!key.includes("=")){
+										if ("numbersetting6" in response.settings[key]){
+											updateSettings(ele, sync, parseFloat(response.settings[key].numbersetting6));
+										} else if (document.querySelector("input[data-numbersetting6='"+key+"']")){
+											updateSettings(ele, sync, parseFloat(document.querySelector("input[data-numbersetting6='"+key+"']").value));
+										} else {
+											updateSettings(ele, sync); 
+										}
+									} else {
+										updateSettings(ele, sync);
+									}
+								} else if (key.includes("=")){
+									var keys = key.split('=');
+									ele = document.querySelector("input[data-param6='"+keys[0]+"']");
+									log(keys);
+									log(response.settings);
+									if (ele){
+										ele.checked = response.settings[key].param6;
+										if (keys[1]){
+											var ele2 = document.querySelector("input[data-numbersetting6='"+keys[0]+"']");
+											if (ele2){
+												ele2.value = parseFloat(keys[1], keys[1]);
+											}
+											updateSettings(ele, sync, parseFloat(keys[1]));
+										} else{
+											updateSettings(ele, sync);
+										}
+									}
 								}
 							}
 							if ("param7" in response.settings[key]){
@@ -1208,6 +1742,63 @@ function update(response, sync=true){
 											updateSettings(ele, sync);
 										}
 									}
+								}
+							}
+							if ("param10" in response.settings[key]){
+								var ele = document.querySelector("input[data-param10='"+key+"']");
+								if (ele){
+									ele.checked = response.settings[key].param10;
+									if (!key.includes("=")){
+										if ("numbersetting10" in response.settings[key]){
+											updateSettings(ele, sync, parseFloat(response.settings[key].numbersetting10));
+										} else if (document.querySelector("input[data-numbersetting10='"+key+"']")){
+											updateSettings(ele, sync, parseFloat(document.querySelector("input[data-numbersetting10='"+key+"']").value));
+										} else if ("optionparam10" in response.settings[key]){
+											updateSettings(ele, sync, response.settings[key].optionparam10);
+										} else if (document.querySelector("input[data-optionparam10='"+key+"']")){
+											updateSettings(ele, sync, document.querySelector("input[data-optionparam10='"+key+"']").value);
+										} else {
+											updateSettings(ele, sync); 
+										}
+									} else {
+										updateSettings(ele, sync);
+									}
+								} else if (key.includes("=")){
+									var keys = key.split('=');
+									ele = document.querySelector("input[data-param10='"+keys[0]+"']");
+									log(keys);
+									log(response.settings);
+									if (ele){
+										ele.checked = response.settings[key].param10;
+										if (keys[1]){
+											var ele2 = document.querySelector("input[data-numbersetting10='"+keys[0]+"']");
+											if (ele2){
+												ele2.value = parseFloat(keys[1], keys[1]);
+											} else {
+												var ele2 = document.querySelector("input[data-numbersetting10='"+keys[0]+"']");
+												if (ele2){
+													ele2.value = keys[1], keys[1];
+												}
+											}
+											updateSettings(ele, sync, parseFloat(keys[1]));
+										} else{
+											updateSettings(ele, sync);
+										}
+									}
+								}
+							}
+							if ("param11" in response.settings[key]){
+								var ele = document.querySelector("input[data-param11='"+key+"']");
+								if (ele){
+									ele.checked = response.settings[key].param11;
+									updateSettings(ele, sync);
+								}
+							}
+							if ("param12" in response.settings[key]){
+								var ele = document.querySelector("input[data-param12='"+key+"']");
+								if (ele){
+									ele.checked = response.settings[key].param12;
+									updateSettings(ele, sync);
 								}
 							}
 							if ("both" in response.settings[key]){
@@ -1270,14 +1861,25 @@ function update(response, sync=true){
 								}
 								
 							}
-							if ("optionsetting" in response.settings[key]){
+							 if ("optionsetting" in response.settings[key]){
 								var ele = document.querySelector("select[data-optionsetting='"+key+"']");
 								if (ele){
+									if (key == "midiOutputDevice" || key.startsWith("mididevice")){
+										if (response.settings[key]?.optionsetting && (ele.value !== response.settings[key].optionsetting)){
+											const option = document.createElement("option");
+											option.textContent = response.settings[key].optionsetting;
+											option.value = response.settings[key].optionsetting;
+											ele.appendChild(option);
+											option.selected = true;
+										}
+									}
+									
 									ele.value = response.settings[key].optionsetting;
-									updateSettings(ele, sync);
+									updateSettings(ele, sync); 
 								}
 								
 								if (key == "aiProvider"){
+									// First hide all elements
 									document.getElementById("ollamamodel").classList.add("hidden");
 									document.getElementById("ollamaendpoint").classList.add("hidden");
 									document.getElementById("chatgptApiKey").classList.add("hidden");
@@ -1285,7 +1887,12 @@ function update(response, sync=true){
 									document.getElementById("geminiApiKey").classList.add("hidden");
 									document.getElementById("geminimodel").classList.add("hidden");
 									document.getElementById("chatgptmodel").classList.add("hidden");
+									document.getElementById("deepseekApiKey").classList.add("hidden");
+									document.getElementById("deepseekmodel").classList.add("hidden");
+									document.getElementById("customAIEndpoint").classList.add("hidden");
+									document.getElementById("customAIModel").classList.add("hidden");
 									
+									// Then show only the relevant ones based on selected provider
 									if (ele.value == "ollama"){
 										document.getElementById("ollamamodel").classList.remove("hidden");
 										document.getElementById("ollamaKeepAlive").classList.remove("hidden");
@@ -1296,9 +1903,29 @@ function update(response, sync=true){
 									} else if (ele.value == "gemini"){
 										document.getElementById("geminiApiKey").classList.remove("hidden");
 										document.getElementById("geminimodel").classList.remove("hidden");
-									} 
+									} else if (ele.value == "deepseek"){
+										document.getElementById("deepseekApiKey").classList.remove("hidden");
+										document.getElementById("deepseekmodel").classList.remove("hidden");
+									} else if (ele.value == "custom"){
+										document.getElementById("customAIEndpoint").classList.remove("hidden");
+										document.getElementById("customAIModel").classList.remove("hidden");
+									}
+								} else if (key == "ttsProvider") {
+									document.getElementById('systemTTS').classList.add('hidden');
+									document.getElementById('elevenlabsTTS').classList.add('hidden');
+									document.getElementById('googleTTS').classList.add('hidden');
+									document.getElementById('speechifyTTS').classList.add('hidden');
+									
+									if (ele.value == "system") {
+										document.getElementById('systemTTS').classList.remove('hidden');
+									} else if (ele.value == "elevenlabs") {
+										document.getElementById('elevenlabsTTS').classList.remove('hidden');
+									} else if (ele.value == "google") {
+										document.getElementById('googleTTS').classList.remove('hidden');
+									} else if (ele.value == "speechify") {
+										document.getElementById('speechifyTTS').classList.remove('hidden');
+									}
 								}
-								
 							}
 							if ("numbersetting" in response.settings[key]){
 								var ele = document.querySelector("input[data-numbersetting='"+key+"']");
@@ -1336,9 +1963,21 @@ function update(response, sync=true){
 									}
 								}
 							}
+							if ("numbersetting10" in response.settings[key]){
+								var ele = document.querySelector("input[data-numbersetting10='"+key+"']");
+								if (ele){
+									ele.value = response.settings[key].numbersetting10;
+									updateSettings(ele, sync);
+									
+									var ele = document.querySelector("input[data-param10='"+key+"']");
+									if (ele && ele.checked){
+										updateSettings(ele, false, parseFloat(response.settings[key].numbersetting10));
+									}
+								}
+							}
 							if ("textparam1" in response.settings[key]){
 								var ele = document.querySelector("input[data-textparam1='"+key+"'],textarea[data-textparam1='"+key+"']");
-								console.log(ele);
+								//console.log(ele);
 								if (ele){
 									ele.value = response.settings[key].textparam1;
 									updateSettings(ele, sync);
@@ -1386,16 +2025,32 @@ function update(response, sync=true){
 									updateSettings(ele, sync);
 								}
 							}
-							if ("optionparam1" in response.settings[key]){
-								var ele = document.querySelector("select[data-optionparam1='"+key+"']");
+							if ("textparam8" in response.settings[key]){
+								var ele = document.querySelector("input[data-textparam8='"+key+"']");
 								if (ele){
-									ele.value = response.settings[key].optionparam1;
+									ele.value = response.settings[key].textparam8;
 									updateSettings(ele, sync);
 								}
-								
-								var ele = document.querySelector("input[data-param1='"+key+"']");
-								if (ele && ele.checked){
-									updateSettings(ele, false, response.settings[key].optionparam1);
+							}
+							if ("textparam9" in response.settings[key]){
+								var ele = document.querySelector("input[data-textparam9='"+key+"']");
+								if (ele){
+									ele.value = response.settings[key].textparam9;
+									updateSettings(ele, sync);
+								}
+							}
+							if ("textparam10" in response.settings[key]){
+								var ele = document.querySelector("input[data-textparam10='"+key+"']");
+								if (ele){
+									ele.value = response.settings[key].textparam10;
+									updateSettings(ele, sync);
+								}
+							}
+							if ("textparam11" in response.settings[key]){
+								var ele = document.querySelector("input[data-textparam11='"+key+"']");
+								if (ele){
+									ele.value = response.settings[key].textparam11;
+									updateSettings(ele, sync);
 								}
 							}
 							if ("optionparam2" in response.settings[key]){
@@ -1445,6 +2100,51 @@ function update(response, sync=true){
 									updateSettings(ele, sync);
 								}
 							}
+							if ("optionparam8" in response.settings[key]){
+								var ele = document.querySelector("select[data-optionparam8='"+key+"']");
+								if (ele){
+									ele.value = response.settings[key].optionparam8;
+									updateSettings(ele, sync);
+								}
+							}
+							if ("optionparam9" in response.settings[key]){
+								var ele = document.querySelector("select[data-optionparam9='"+key+"']");
+								if (ele){
+									ele.value = response.settings[key].optionparam9;
+									updateSettings(ele, sync);
+								}
+							}
+							if ("optionparam10" in response.settings[key]){
+								var ele = document.querySelector("select[data-optionparam10='"+key+"']");
+								if (ele){
+									ele.value = response.settings[key].optionparam10;
+									updateSettings(ele, sync);
+								}
+								
+								var ele = document.querySelector("input[data-param10='"+key+"']");
+								if (ele && ele.checked){
+									updateSettings(ele, false, response.settings[key].optionparam10);
+								}
+							}
+							if ("optionparam11" in response.settings[key]){
+								var ele = document.querySelector("select[data-optionparam11='"+key+"']");
+								if (ele){
+									ele.value = response.settings[key].optionparam11;
+									updateSettings(ele, sync);
+								}
+							}
+							if ("optionparam12" in response.settings[key]){
+								var ele = document.querySelector("select[data-optionparam12='"+key+"']");
+								if (ele){
+									ele.value = response.settings[key].optionparam12;
+									updateSettings(ele, sync);
+								}
+								
+								var ele = document.querySelector("input[data-param12='"+key+"']");
+								if (ele && ele.checked){
+									updateSettings(ele, false, response.settings[key].optionparam12);
+								}
+							}
 							if (('customGifCommands' in response.settings) && response.settings.customGifCommands.json) {
 								const commands = JSON.parse(response.settings.customGifCommands.json || '[]');
 								const commandsList = document.getElementById('customGifCommandsList');
@@ -1480,6 +2180,7 @@ function update(response, sync=true){
 				}
 			}
 			
+			createTabsFromSettings(response);
 			
 			if (hideLinks){
 				document.body.classList.add("hidelinks");
@@ -1490,6 +2191,15 @@ function update(response, sync=true){
 			try {
 				document.getElementById("docklink").innerText = hideLinks ? "Click to open link" : document.getElementById("dock").raw;
 				document.getElementById("docklink").href = document.getElementById("dock").raw;
+				
+				document.getElementById("cohostlink").innerText = hideLinks ? "Click to open link" : document.getElementById("cohost").raw;
+				document.getElementById("cohostlink").href = document.getElementById("cohost").raw;
+				
+				document.getElementById("privatechatbotlink").innerText = hideLinks ? "Click to open link" : document.getElementById("privatechatbot").raw;
+				document.getElementById("privatechatbotlink").href = document.getElementById("privatechatbot").raw;
+				
+				document.getElementById("chatbotlink").innerText = hideLinks ? "Click to open link" : document.getElementById("bot").raw;
+				document.getElementById("chatbotlink").href = document.getElementById("bot").raw;
 
 				document.getElementById("overlaylink").innerText = hideLinks ? "Click to open link" : document.getElementById("overlay").raw;
 				document.getElementById("overlaylink").href = document.getElementById("overlay").raw;
@@ -1502,6 +2212,9 @@ function update(response, sync=true){
 				
 				document.getElementById("waitlistlink").innerText = hideLinks ? "Click to open link" : document.getElementById("waitlist").raw;
 				document.getElementById("waitlistlink").href = document.getElementById("waitlist").raw;
+				
+				document.getElementById("tipjarlink").innerText = hideLinks ? "Click to open link" : document.getElementById("tipjar").raw;
+				document.getElementById("tipjarlink").href = document.getElementById("tipjar").raw;
 				
 				document.getElementById("tickerlink").innerText = hideLinks ? "Click to open link" : document.getElementById("ticker").raw;
 				document.getElementById("tickerlink").href = document.getElementById("ticker").raw;
@@ -1589,7 +2302,7 @@ function compareVersions(a, b) { // https://stackoverflow.com/a/6832706
     return 0;
 }
 var Beta = false
-function checkVersion(){
+async function checkVersion(){
 	
 	const WEBSTORE_ID = "cppibjhfemifednoimlblfcmjgfhfjeg"; // our webstore ID
 	
@@ -1733,6 +2446,10 @@ function updateSettings(ele, sync=true, value=null){
 	} else if (ele.dataset.del2){
 		ele.dataset.del2.split(",").forEach(target=>{
 			document.getElementById("overlay").raw = removeQueryParamWithValue(document.getElementById("overlay").raw, target.trim());
+		});
+	} else if (ele.dataset.del10){
+		ele.dataset.del10.split(",").forEach(target=>{
+			document.getElementById("chatbot").raw = removeQueryParamWithValue(document.getElementById("chatbot").raw, target.trim());
 		});
 	}
 	
@@ -1913,6 +2630,7 @@ function updateSettings(ele, sync=true, value=null){
 		if (sync){
 			chrome.runtime.sendMessage({cmd: "saveSetting", type: "textparam7",  target:target, setting: ele.dataset.textparam7, "value": ele.value}, function (response) {});
 		}
+
 	} else if (ele.dataset.optionparam1){
 		document.getElementById("dock").raw = removeQueryParamWithValue(document.getElementById("dock").raw, ele.dataset.optionparam1);
 		
@@ -1968,6 +2686,7 @@ function updateSettings(ele, sync=true, value=null){
 		if (sync){
 			chrome.runtime.sendMessage({cmd: "saveSetting", type: "optionparam4", target:target,  setting: ele.dataset.optionparam4, "value": ele.value}, function (response) {});
 		}
+	
 	} else if (ele.dataset.optionparam6){
 		document.getElementById("ticker").raw = removeQueryParamWithValue(document.getElementById("ticker").raw, ele.dataset.optionparam6);
 		
@@ -1991,6 +2710,23 @@ function updateSettings(ele, sync=true, value=null){
 		document.getElementById("wordcloud").raw = document.getElementById("wordcloud").raw.replace("?&", "?");
 		if (sync){
 			chrome.runtime.sendMessage({cmd: "saveSetting", type: "optionparam7", target:target,  setting: ele.dataset.optionparam7, "value": ele.value}, function (response) {});
+		}
+	} else if (ele.dataset.optionparam10){
+		document.getElementById("chatbot").raw = removeQueryParamWithValue(document.getElementById("chatbot").raw, ele.dataset.optionparam10);
+		
+		if (ele.value){
+			ele.value.split("&").forEach(rem=>{
+				if (rem.includes("=")){
+					document.getElementById("chatbot").raw = removeQueryParamWithValue(document.getElementById("chatbot").raw, rem.split("=")[0]);
+				}
+			});
+			document.getElementById("chatbot").raw = updateURL(ele.dataset.optionparam10+"="+encodeURIComponent(ele.value).replace(/%26/g, '&').replace(/%3D/g, '='), document.getElementById("chatbot").raw);
+		}
+		
+		document.getElementById("chatbot").raw = document.getElementById("chatbot").raw.replace("&&", "&");
+		document.getElementById("chatbot").raw = document.getElementById("chatbot").raw.replace("?&", "?");
+		if (sync){
+			chrome.runtime.sendMessage({cmd: "saveSetting", type: "optionparam4", target:target,  setting: ele.dataset.optionparam4, "value": ele.value}, function (response) {});
 		}
 	} else if (ele.dataset.param2){
 		if (ele.checked){
@@ -2066,8 +2802,6 @@ function updateSettings(ele, sync=true, value=null){
 			}
 		});
 	} else if (ele.dataset.param5){
-		
-		
 		if (ele.checked){
 			document.getElementById("waitlist").raw = updateURL(ele.dataset.param5, document.getElementById("waitlist").raw);
 		} else {
@@ -2079,7 +2813,6 @@ function updateSettings(ele, sync=true, value=null){
 		if (sync){
 			chrome.runtime.sendMessage({cmd: "saveSetting", type: "param5",  target:target, setting: ele.dataset.param5, "value": ele.checked}, function (response) {});
 		}
-		
 		
 		if (ele.dataset.param5 == "alignright"){
 			var key = "aligncenter";
@@ -2190,34 +2923,77 @@ function updateSettings(ele, sync=true, value=null){
 			}
 		});
 		
-	
-		
-		
-	} else if (ele.dataset.both){
+	} else if (ele.dataset.param10){
 		if (ele.checked){
-			document.getElementById("overlay").raw = updateURL(ele.dataset.both, document.getElementById("overlay").raw);
-			document.getElementById("dock").raw = updateURL(ele.dataset.both, document.getElementById("dock").raw);
-			document.getElementById("emoteswall").raw = updateURL(ele.dataset.both, document.getElementById("emoteswall").raw);
-			document.getElementById("waitlist").raw = updateURL(ele.dataset.both, document.getElementById("waitlist").raw);
-			document.getElementById("hypemeter").raw = updateURL(ele.dataset.both, document.getElementById("hypemeter").raw);
+			document.getElementById("chatbot").raw = updateURL(ele.dataset.param10, document.getElementById("chatbot").raw);
 		} else {
-			document.getElementById("overlay").raw = removeQueryParamWithValue(document.getElementById("overlay").raw, ele.dataset.both);
-			document.getElementById("dock").raw = removeQueryParamWithValue(document.getElementById("dock").raw, ele.dataset.both);
-			document.getElementById("emoteswall").raw = removeQueryParamWithValue(document.getElementById("emoteswall").raw, ele.dataset.both);
-			document.getElementById("waitlist").raw = removeQueryParamWithValue(document.getElementById("waitlist").raw, ele.dataset.both);
-			document.getElementById("hypemeter").raw = removeQueryParamWithValue(document.getElementById("hypemeter").raw, ele.dataset.both);
+			document.getElementById("chatbot").raw = removeQueryParamWithValue(document.getElementById("chatbot").raw, ele.dataset.param10);
+		}
+		document.getElementById("chatbot").raw = document.getElementById("chatbot").raw.replace("&&", "&");
+		document.getElementById("chatbot").raw = document.getElementById("chatbot").raw.replace("?&", "?");
+		if (sync){
+			chrome.runtime.sendMessage({cmd: "saveSetting", type: "param10",  target:target, setting: ele.dataset.param10, "value": ele.checked}, function (response) {});
 		}
 		
-		document.getElementById("overlay").raw = document.getElementById("overlay").raw.replace("&&", "&");
-		document.getElementById("overlay").raw = document.getElementById("overlay").raw.replace("?&", "?");
-		document.getElementById("dock").raw = document.getElementById("dock").raw.replace("&&", "&");
-		document.getElementById("dock").raw = document.getElementById("dock").raw.replace("?&", "?");
-		document.getElementById("emoteswall").raw = document.getElementById("emoteswall").raw.replace("&&", "&");
-		document.getElementById("emoteswall").raw = document.getElementById("emoteswall").raw.replace("?&", "?");
-		document.getElementById("waitlist").raw = document.getElementById("waitlist").raw.replace("&&", "&");
-		document.getElementById("waitlist").raw = document.getElementById("waitlist").raw.replace("?&", "?");
-		document.getElementById("hypemeter").raw = document.getElementById("hypemeter").raw.replace("&&", "&");
-		document.getElementById("hypemeter").raw = document.getElementById("hypemeter").raw.replace("?&", "?");
+		document.querySelectorAll("input[data-param10^='"+ele.dataset.param10.split("=")[0]+"']:not([data-param10='"+ele.dataset.param10+"'])").forEach(ele1=>{
+			if (ele1 && ele1.checked){
+				ele1.checked = false;
+				updateSettings(ele1, sync);
+			}
+		});	
+		
+	} else if (ele.dataset.param11){
+		if (ele.checked){
+			document.getElementById("cohost").raw = updateURL(ele.dataset.param11, document.getElementById("cohost").raw);
+		} else {
+			document.getElementById("cohost").raw = removeQueryParamWithValue(document.getElementById("cohost").raw, ele.dataset.param11);
+		}
+		document.getElementById("cohost").raw = document.getElementById("cohost").raw.replace("&&", "&");
+		document.getElementById("cohost").raw = document.getElementById("cohost").raw.replace("?&", "?");
+		if (sync){
+			chrome.runtime.sendMessage({cmd: "saveSetting", type: "param11",  target:target, setting: ele.dataset.param11, "value": ele.checked}, function (response) {});
+		}
+		
+		document.querySelectorAll("input[data-param11^='"+ele.dataset.param11.split("=")[0]+"']:not([data-param11='"+ele.dataset.param11+"'])").forEach(ele1=>{
+			if (ele1 && ele1.checked){
+				ele1.checked = false;
+				updateSettings(ele1, sync);
+			}
+		});	
+		
+	} else if (ele.dataset.param12){
+		if (ele.checked){
+			document.getElementById("tipjar").raw = updateURL(ele.dataset.param12, document.getElementById("tipjar").raw);
+		} else {
+			document.getElementById("tipjar").raw = removeQueryParamWithValue(document.getElementById("tipjar").raw, ele.dataset.param12);
+		}
+		document.getElementById("tipjar").raw = document.getElementById("tipjar").raw.replace("&&", "&");
+		document.getElementById("tipjar").raw = document.getElementById("tipjar").raw.replace("?&", "?");
+		if (sync){
+			chrome.runtime.sendMessage({cmd: "saveSetting", type: "param12",  target:target, setting: ele.dataset.param12, "value": ele.checked}, function (response) {});
+		}
+		
+		document.querySelectorAll("input[data-param12^='"+ele.dataset.param12.split("=")[0]+"']:not([data-param12='"+ele.dataset.param12+"'])").forEach(ele1=>{
+			if (ele1 && ele1.checked){
+				ele1.checked = false;
+				updateSettings(ele1, sync);
+			}
+		});	
+		
+	} else if (ele.dataset.both){
+		
+		const elements = ['overlay', 'dock', 'emoteswall', 'waitlist', 'hypemeter', 
+                 'chatbot', 'cohost', 'privatechatbot', 'tipjar'];
+
+		elements.forEach(id => {
+			const element = document.getElementById(id);
+			element.raw = ele.checked 
+				? updateURL(ele.dataset.both, element.raw)
+				: removeQueryParamWithValue(element.raw, ele.dataset.both);
+				
+			element.raw = element.raw.replace("&&", "&").replace("?&", "?");
+		});
+
 		if (sync){
 			chrome.runtime.sendMessage({cmd: "saveSetting",  type: "both",  target:target, setting: ele.dataset.both, "value": ele.checked}, function (response) {});
 		}
@@ -2279,20 +3055,59 @@ function updateSettings(ele, sync=true, value=null){
 				document.getElementById("geminiApiKey").classList.add("hidden");
 				document.getElementById("geminimodel").classList.add("hidden");
 				document.getElementById("chatgptmodel").classList.add("hidden");
+				document.getElementById("deepseekApiKey").classList.add("hidden");
+				document.getElementById("deepseekmodel").classList.add("hidden");
+				document.getElementById("customAIEndpoint").classList.add("hidden");
+				document.getElementById("customAIModel").classList.add("hidden");
+				document.getElementById("ollamaKeepAlive").classList.remove("hidden");
 			} else if (ele.value == "chatgpt"){
 				document.getElementById("chatgptApiKey").classList.remove("hidden");
+				document.getElementById("chatgptmodel").classList.remove("hidden");
 				document.getElementById("ollamamodel").classList.add("hidden");
 				document.getElementById("ollamaendpoint").classList.add("hidden");
 				document.getElementById("geminiApiKey").classList.add("hidden");
 				document.getElementById("geminimodel").classList.add("hidden");
-				document.getElementById("chatgptmodel").classList.remove("hidden");
+				document.getElementById("deepseekApiKey").classList.add("hidden");
+				document.getElementById("deepseekmodel").classList.add("hidden");
+				document.getElementById("customAIEndpoint").classList.add("hidden");
+				document.getElementById("customAIModel").classList.add("hidden");
+				document.getElementById("ollamaKeepAlive").classList.add("hidden");
 			} else if (ele.value == "gemini"){
 				document.getElementById("geminiApiKey").classList.remove("hidden");
+				document.getElementById("geminimodel").classList.remove("hidden");
 				document.getElementById("ollamamodel").classList.add("hidden");
 				document.getElementById("ollamaendpoint").classList.add("hidden");
 				document.getElementById("chatgptApiKey").classList.add("hidden");
-				document.getElementById("geminimodel").classList.remove("hidden");
 				document.getElementById("chatgptmodel").classList.add("hidden");
+				document.getElementById("deepseekApiKey").classList.add("hidden");
+				document.getElementById("deepseekmodel").classList.add("hidden");
+				document.getElementById("customAIEndpoint").classList.add("hidden");
+				document.getElementById("customAIModel").classList.add("hidden");
+				document.getElementById("ollamaKeepAlive").classList.add("hidden");
+			} else if (ele.value == "deepseek"){
+				document.getElementById("deepseekApiKey").classList.remove("hidden");
+				document.getElementById("deepseekmodel").classList.remove("hidden");
+				document.getElementById("ollamamodel").classList.add("hidden");
+				document.getElementById("ollamaendpoint").classList.add("hidden");
+				document.getElementById("chatgptApiKey").classList.add("hidden");
+				document.getElementById("geminiApiKey").classList.add("hidden");
+				document.getElementById("geminimodel").classList.add("hidden");
+				document.getElementById("chatgptmodel").classList.add("hidden");
+				document.getElementById("customAIEndpoint").classList.add("hidden");
+				document.getElementById("customAIModel").classList.add("hidden");
+				document.getElementById("ollamaKeepAlive").classList.add("hidden");
+			} else if (ele.value == "custom"){
+				document.getElementById("customAIEndpoint").classList.remove("hidden");
+				document.getElementById("customAIModel").classList.remove("hidden");
+				document.getElementById("ollamamodel").classList.add("hidden");
+				document.getElementById("ollamaendpoint").classList.add("hidden");
+				document.getElementById("chatgptApiKey").classList.add("hidden");
+				document.getElementById("geminiApiKey").classList.add("hidden");
+				document.getElementById("geminimodel").classList.add("hidden");
+				document.getElementById("chatgptmodel").classList.add("hidden");
+				document.getElementById("deepseekApiKey").classList.add("hidden");
+				document.getElementById("deepseekmodel").classList.add("hidden");
+				document.getElementById("ollamaKeepAlive").classList.add("hidden");
 			} else {
 				document.getElementById("ollamamodel").classList.add("hidden");
 				document.getElementById("ollamaendpoint").classList.add("hidden");
@@ -2300,11 +3115,69 @@ function updateSettings(ele, sync=true, value=null){
 				document.getElementById("geminiApiKey").classList.add("hidden");
 				document.getElementById("geminimodel").classList.add("hidden");
 				document.getElementById("chatgptmodel").classList.add("hidden");
+				document.getElementById("deepseekApiKey").classList.add("hidden");
+				document.getElementById("deepseekmodel").classList.add("hidden");
+				document.getElementById("customAIEndpoint").classList.add("hidden");
+				document.getElementById("customAIModel").classList.add("hidden");
+				document.getElementById("ollamaKeepAlive").classList.add("hidden");
+			}
+		}
+		if (ele.dataset.optionsetting == "ttsProvider"){
+			document.getElementById('systemTTS').classList.add('hidden');
+			document.getElementById('elevenlabsTTS').classList.add('hidden');
+			document.getElementById('googleTTS').classList.add('hidden');
+			document.getElementById('speechifyTTS').classList.add('hidden');
+			switch(ele.value) {
+				case 'system':
+					document.getElementById('systemTTS').classList.remove('hidden');
+					break;
+				case 'elevenlabs':
+					document.getElementById('elevenlabsTTS').classList.remove('hidden');
+					break;
+				case 'google':
+					document.getElementById('googleTTS').classList.remove('hidden');
+					break;
+				case 'speechify':
+					document.getElementById('speechifyTTS').classList.remove('hidden');
+					break;
+				default:
+					document.getElementById('systemTTS').classList.remove('hidden');
+					break;
 			}
 		}
 		
 		if (sync){
 			chrome.runtime.sendMessage({cmd: "saveSetting",  type: "optionsetting", target:target,  setting: ele.dataset.optionsetting, "value": ele.value}, function (response) {});
+		}
+		return;
+	} else if (ele.dataset.optionsetting10){
+		
+		if (ele.dataset.optionsetting10 == "ttsProvider"){
+			document.getElementById('systemTTS10').classList.add('hidden');
+			document.getElementById('elevenlabsTTS10').classList.add('hidden');
+			document.getElementById('googleTTS10').classList.add('hidden');
+			document.getElementById('speechifyTTS10').classList.add('hidden');
+			switch(ele.value) {
+				case 'system':
+					document.getElementById('systemTTS10').classList.remove('hidden');
+					break;
+				case 'elevenlabs':
+					document.getElementById('elevenlabsTTS10').classList.remove('hidden');
+					break;
+				case 'google':
+					document.getElementById('googleTTS10').classList.remove('hidden');
+					break;
+				case 'speechify':
+					document.getElementById('speechifyTTS10').classList.remove('hidden');
+					break;
+				default:
+					document.getElementById('systemTTS10').classList.remove('hidden');
+					break;
+			}
+		}
+		
+		if (sync){
+			chrome.runtime.sendMessage({cmd: "saveSetting",  type: "optionsetting10", target:target,  setting: ele.dataset.optionsetting10, "value": ele.value}, function (response) {});
 		}
 		return;
 	} else if (ele.dataset.textsetting){
@@ -2348,6 +3221,39 @@ function updateSettings(ele, sync=true, value=null){
 			document.getElementById("custom-gif-commands").raw = updateURL(ele.dataset.numbersetting9+"="+ ele.value, document.getElementById("custom-gif-commands").raw);
 		} else {
 			return;
+		}
+	} else if (ele.dataset.numbersetting10){ 
+		
+		if (sync){
+			chrome.runtime.sendMessage({cmd: "saveSetting", type: "numbersetting10",  target:target, setting: ele.dataset.numbersetting10, "value": ele.value}, function (response) {});
+		}
+		if (document.querySelector("input[data-param10='"+ele.dataset.numbersetting10+"']") && document.querySelector("input[data-param10='"+ele.dataset.numbersetting10+"']").checked){
+			document.getElementById("chatbot").raw = removeQueryParamWithValue(document.getElementById("chatbot").raw,ele.dataset.numbersetting10);
+			document.getElementById("chatbot").raw = updateURL(ele.dataset.numbersetting10+"="+ ele.value, document.getElementById("chatbot").raw);
+		} else {
+			return;
+		}	
+	} else if (ele.dataset.numbersetting11){ 
+		
+		if (sync){
+			chrome.runtime.sendMessage({cmd: "saveSetting", type: "numbersetting11",  target:target, setting: ele.dataset.numbersetting11, "value": ele.value}, function (response) {});
+		}
+		if (document.querySelector("input[data-param11='"+ele.dataset.numbersetting11+"']") && document.querySelector("input[data-param11='"+ele.dataset.numbersetting11+"']").checked){
+			document.getElementById("cohost").raw = removeQueryParamWithValue(document.getElementById("cohost").raw,ele.dataset.numbersetting11);
+			document.getElementById("cohost").raw = updateURL(ele.dataset.numbersetting11+"="+ ele.value, document.getElementById("cohost").raw);
+		} else {
+			return;
+		}
+	} else if (ele.dataset.numbersetting12){ 
+		
+		if (sync){
+			chrome.runtime.sendMessage({cmd: "saveSetting", type: "numbersetting12",  target:target, setting: ele.dataset.numbersetting12, "value": ele.value}, function (response) {});
+		}
+		if (document.querySelector("input[data-param12='"+ele.dataset.numbersetting12+"']") && document.querySelector("input[data-param12='"+ele.dataset.numbersetting12+"']").checked){
+			document.getElementById("tipjar").raw = removeQueryParamWithValue(document.getElementById("tipjar").raw,ele.dataset.numbersetting12);
+			document.getElementById("tipjar").raw = updateURL(ele.dataset.numbersetting12+"="+ ele.value, document.getElementById("tipjar").raw);
+		} else {
+			return;
 		}		
 	} else if (ele.dataset.special){
 		
@@ -2374,15 +3280,22 @@ function updateSettings(ele, sync=true, value=null){
 			}
 			chrome.runtime.sendMessage({cmd: "sidUpdated",  target:target, password: ele.value || ""}, function (response) {log("Password updated");});
 		}
-	} else if (ele.dataset.color){
-		
+	}
+	
+	if (ele.dataset.color){	
 		var ele2 = document.getElementById(ele.dataset.color);
 		if (ele2){
 			ele2.value = ele.value
 			updateSettings(ele2, sync);
 			return;
 		}
-		
+	} else if (ele.dataset.palette){
+		var ele2 = document.getElementById(ele.dataset.palette);
+		if (ele2){
+			ele2.value = ele.value
+			// updateSettings(ele2, sync); // the pallete in this case is just the picker; not the value holder.
+			return;
+		}
 	} 
 	
 	refreshLinks();
@@ -2474,6 +3387,18 @@ function refreshLinks(){
 		
 		document.getElementById("custom-gif-commands-link").innerText = hideLinks ? "Click to open link" : document.getElementById("custom-gif-commands").raw;
 		document.getElementById("custom-gif-commands-link").href = document.getElementById("custom-gif-commands").raw;
+		
+		document.getElementById("chatbotlink").innerText = hideLinks ? "Click to open link" : document.getElementById("chatbot").raw;
+		document.getElementById("chatbotlink").href = document.getElementById("chatbot").raw;
+		
+		document.getElementById("cohostlink").innerText = hideLinks ? "Click to open link" : document.getElementById("cohost").raw;
+		document.getElementById("cohostlink").href = document.getElementById("cohost").raw;
+		
+		document.getElementById("tipjarlink").innerText = hideLinks ? "Click to open link" : document.getElementById("tipjar").raw;
+		document.getElementById("tipjarlink").href = document.getElementById("tipjar").raw;
+		
+		document.getElementById("privatechatbotlink").innerText = hideLinks ? "Click to open link" : document.getElementById("privatechatbot").raw;
+		document.getElementById("privatechatbotlink").href = document.getElementById("privatechatbot").raw;
 	} catch(e){}
 }
 
@@ -2492,7 +3417,7 @@ if (!chrome.browserAction){
 		  reject(new Error('Response timeout'));
 		}, timeout);
 
-		chrome.runtime.sendMessage({type: 'toBackground', data: message}, response => {
+		chrome.runtime.sendMessage({type: 'toBackground', data: message}, response => { 
 		  clearTimeout(timeoutId);
 		  if (chrome.runtime.lastError) {
 			reject(chrome.runtime.lastError);
@@ -2614,9 +3539,9 @@ function uploadBadwordsFile() {
       const reader = new FileReader();
       reader.onload = (e) => {
         const contents = e.target.result;
-		console.log({cmd: 'uploadBadwords', data: contents});
+		//console.log({cmd: 'uploadBadwords', data: contents});
         chrome.runtime.sendMessage({cmd: 'uploadBadwords', data: contents}, (response) => {
-		  console.log(response);
+		  //console.log(response);
           if (response.success) {
             alert('Badwords file uploaded successfully.');
           } else {
@@ -2716,12 +3641,14 @@ const TTSManager = {
             }
         }
     },
-    
+	
+
     getSettings() {
         const settings = {
             // Global settings
             speech: document.querySelector('[data-param1="speech"]')?.checked,
             volume: document.querySelector('[data-param1="volume"]').checked ?  parseFloat(document.querySelector('[data-numbersetting="volume"]')?.value) || 1.0 : 1.0,
+			service: document.getElementById('ttsProvider').value || "system",
             
             // System TTS settings
             system: {
@@ -2733,7 +3660,7 @@ const TTSManager = {
             
             // Google Cloud TTS settings
             google: {
-                key: document.getElementById('googleAPIKey')?.value,
+                key: document.getElementById('googleAPIKey')?.value || document.getElementById('ttskey')?.value,
                 voice: document.getElementById('googleVoiceName')?.value,
                 lang:  document.querySelector('[data-param1="googlelang"]').checked ?  document.querySelector('[data-optionparam1="googlelang"]')?.value || 'en-US' : "en-US",
                 rate: document.querySelector('[data-param1="googlerate"]').checked ? parseFloat(document.querySelector('[data-numbersetting="googlerate"]')?.value) || 1.0 : 1.0,
@@ -2788,9 +3715,10 @@ const TTSManager = {
             }, 5000);
         }
     },
-    
+	
     getServiceName() {
         const settings = this.getSettings();
+		if (settings.service) return document.getElementById('ttsProvider').options[document.getElementById('ttsProvider').selectedIndex].innerText;
         if (settings.google.key) return 'Google Cloud TTS';
         if (settings.elevenLabs.key) return 'ElevenLabs TTS';
         if (settings.speechify.key) return 'Speechify TTS';
@@ -2841,25 +3769,25 @@ const TTSManager = {
         if (!text) return;
         
         try {
-            if (settings.google.key) {
+            if ((settings.service == "google") && settings.google.key) {
                 if (!this.premiumQueueActive) {
                     await this.googleTTS(text, settings);
                 } else {
                     this.premiumQueueTTS.push(text);
                 }
-            } else if (settings.elevenLabs.key) {
+            } else if ((settings.service == "elevenlabs") && settings.elevenLabs.key) {
                 if (!this.premiumQueueActive) {
                     await this.elevenLabsTTS(text, settings);
                 } else {
                     this.premiumQueueTTS.push(text);
                 }
-            } else if (settings.speechify.key) {
+            } else if ((settings.service == "speechify") && settings.speechify.key) {
                 if (!this.premiumQueueActive) {
                     await this.speechifyTTS(text, settings);
                 } else {
                     this.premiumQueueTTS.push(text);
                 }
-            } else {
+            } else if (!settings.service || (settings.service == "system")) {
                 this.systemTTS(text, settings);
             }
         } catch (error) {
@@ -2972,13 +3900,13 @@ const TTSManager = {
 			const response = await fetch(url, options);
 			
 			if (!response.ok) {
-				console.log(response);
+				//console.log(response);
 				// Try to get detailed error message from response
 				const contentType = response.headers.get("content-type");
-				console.log(contentType);
+				//console.log(contentType);
 				if (contentType && contentType.includes("application/json")) {
 					const errorData = await response.json();
-					console.log(errorData);
+					//console.log(errorData);
 					throw new Error(errorData?.message || errorData?.detail?.message || errorData?.error || `HTTP error! status: ${response.status}`);
 				}
 				throw new Error(`HTTP error! status: ${response.status}`);

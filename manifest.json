@@ -2,7 +2,7 @@
   "name": "Social Stream Ninja",
   "description": "Powerful tooling to engage live chat on Youtube, Twitch, Zoom, and more.",
   "manifest_version": 3,
-  "version": "3.9.10",
+  "version": "3.12.0",
   "homepage_url": "http://socialstream.ninja/",
   "icons": {
     "128": "icons/icon-128.png"
@@ -26,12 +26,15 @@
     "https://zap.stream/*",
     "https://www.bigo.tv/*",
 	"https://claude.ai/*",
+	"https://*/*autoreloadwithsocialstream",
 	"https://*.webinargeek.com/webinar/*",
     "https://chaturbate.com/*/",
     "https://cherry.tv/*",				  
     "https://beamstream.gg/*/chat",
     "https://socialstream.ninja/sources/websocket/*",
     "https://socialstream.ninja/websocket/*",
+	"https://beta.socialstream.ninja/sources/websocket/*",
+    "https://beta.socialstream.ninja/websocket/*",
     "https://cozy.tv/*",
     "https://play.afreecatv.com/*?vtype=chat",
     "https://kiwiirc.com/nextclient/*",
@@ -71,6 +74,7 @@
     "https://chatroll.com/embed/chat/*",
     "https://www.nimo.tv/popout/chat/*",
 	"https://noice.com/*",
+	"https://studio.noice.com/popout/*",
     "https://dashboard.nimo.tv/popout/chat/*",
     "https://demo.openstreamingplatform.com/view/*chatOnly=True*",
     "https://*.locals.com/post/*",
@@ -99,6 +103,7 @@
     "https://web.whatsapp.com/",
     "https://rumble.com/*",
     "https://www.amazon.com/live*",
+	"https://substack.com/*?liveStream=*",
     "https://www.amazon.com/b/?node=*&broadcast=*",
     "https://*.telegram.org/*",
     "https://*.webex.com/*",
@@ -109,6 +114,7 @@
     "https://www.youtube.com/*",
     "https://studio.youtube.com/*",
     "https://*.twitch.tv/*",
+	"https://www.bitchute.com/video/*",
     "https://www.instagram.com/*",
     "https://livecenter.tiktok.com/*",
     "https://www.tiktok.com/*live*",
@@ -122,6 +128,7 @@
     "https://www.crowdcast.io/e/*",
     "https://*.zoom.us/*",
     "https://watch.owncast.online/*",
+    "https://live.simontv.org/*",
     "https://discord.com/*",
     "https://www.mixcloud.com/live/*/chat/",
     "https://vimeo.com/live*",
@@ -237,8 +244,8 @@
       "matches": [ "https://pilled.net/*" ]
     },
 	{
-      "js": [ "./sources/noice.js" ],
-      "matches": [ "https://noice.com/*" ]
+      "js": [ "./sources/noice.js"],
+      "matches": [ "https://noice.com/*", "https://studio.noice.com/popout/*"]
     },
 	{
       "js": [ "./sources/nicovideo.js" ],
@@ -251,6 +258,10 @@
 	{
       "js": [ "./sources/fc2.js" ],
       "matches": [ "https://live.fc2.com/*/" ]
+    },
+	{
+      "js": [ "./sources/autoreload.js" ],
+      "matches": [ "https://*/*autoreloadwithsocialstream" ]
     },
     {
       "js": [ "./sources/steam.js" ],
@@ -423,7 +434,7 @@
       ]
     },
     {
-      "js": [ "./sources/static/youtube.js" ],
+      "js": [ "./sources/static/youtube_static.js" ],
       "matches": [ "https://www.youtube.com/*" ]
     },
     {
@@ -496,6 +507,10 @@
 		"https://live.bilibili.com/*"
       ]
     },
+	{
+      "js": [ "./sources/bitchute.js" ],
+      "matches": [ "https://www.bitchute.com/video/*" ]
+    },
     {
       "js": [ "./sources/piczel.js" ],
       "matches": [ "https://piczel.tv/chat/*" ]
@@ -508,8 +523,18 @@
       "js": [ "./sources/websocket/twitch.js" ],
       "matches": [
         "https://socialstream.ninja/sources/websocket/twitch*",
+		"https://beta.socialstream.ninja/sources/websocket/twitch*",
         "file:///C:/Users/steve/Code/social_stream/sources/websocket/twitch.html*",
 		"http://localhost/twitch.html*"
+      ]
+    },
+	{
+      "js": [ "./sources/websocket/irc.js" ],
+      "matches": [
+        "https://socialstream.ninja/sources/websocket/irc*",
+		"https://beta.socialstream.ninja/sources/websocket/irc*",
+        "file:///C:/Users/steve/Code/social_stream/sources/websocket/irc.html*",
+		"http://localhost/irc.html*"
       ]
     },
     {
@@ -587,7 +612,7 @@
     },
     {
       "js": [ "./sources/owncast.js" ],
-      "matches": [ "https://watch.owncast.online/*" ]
+      "matches": [ "https://watch.owncast.online/*", "https://live.simontv.org/embed/chat/readwrite/*"]
     },
     {
       "js": [ "./sources/zoom.js" ],
@@ -638,6 +663,10 @@
     {
       "js": [ "./sources/instagram.js" ],
       "matches": [ "https://www.instagram.com/*" ]
+    },
+	{
+      "js": [ "./sources/substack.js" ],
+      "matches": [ "https://substack.com/*?liveStream=*" ]
     },
     {
       "js": [ "./sources/tiktok.js" ],

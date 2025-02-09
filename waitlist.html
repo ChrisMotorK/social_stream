@@ -6,7 +6,7 @@
 	<meta content="utf-8" http-equiv="encoding" />
 	<title>Social Stream - Wait List</title>
 	<meta name="title" content="Social Stream - Wait List" />
-	<link rel="icon" href="./icons/favicon.ico" />
+	<link rel="icon" href="./favicon.ico" />
 	<link rel="preload" href="./thirdparty/NotoColorEmoji.ttf" as="font" type="font/ttf" crossorigin="anonymous">
     <style>
         :root {
@@ -427,7 +427,7 @@
 	
 	var conCon = 1;
 	var socketserver = false;
-	var serverURL = "wss://io.socialstream.ninja/extension";
+	var serverURL = urlParams.has("localserver") ? "ws://127.0.0.1:3000" : "wss://io.socialstream.ninja/extension";
 
 	function setupSocket(){
 		socketserver.onclose = function (){

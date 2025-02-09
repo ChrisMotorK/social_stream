@@ -5,7 +5,7 @@
 		<meta content="utf-8" http-equiv="encoding" />
 		<title>Social Stream - Dashboard</title>
 		<meta name="title" content="Social Stream - Dashboard" />
-		<link rel="icon" href="./icons/favicon.ico" />
+		<link rel="icon" href="./favicon.ico" />
 		<link href="./thirdparty/NotoColorEmoji.ttf" as="font" type="font/ttf" crossorigin="anonymous" />
 		<meta name="robots" content="noindex">
 
@@ -47,6 +47,7 @@
 
 				--font-family: Sora, Avenir Next, Roboto, Helvetica, Geneva, Verdana, Arial, sans-serif;
 
+				--donation-amount: #ffe60073;
 				--donation-bgcolor: #feffad33;
 				--donation-bgcolor-odd: #fdff6533;
 				--donation-bgcolor-bubble: #171703e0;
@@ -69,20 +70,20 @@
 			}
 			.closeBtn {
 				position: absolute;
-				right: -15px;
+				right:-10px;
 				width: 20px;
 				background-color: #bababa;
-				padding: 3px;
-				border-radius: 50%;
+				padding: 10px;
+				border-radius: 43%;
 				height: 19px;
-				top: -20px;
+				top: -10px;
 				text-align: center;
 				border: 2px solid black;
 				cursor: pointer;
 			}
 
 			.closeBtn:hover {
-				background-color: #9a9a9a;
+				background-color: #aa8a8a;
 			}
 
 			.closeBtn:active {
@@ -564,6 +565,11 @@
 				margin-top: 8px;
 			}
 			
+			#context-menu {
+			  transform-origin: bottom left;
+			  transform: scale(var(--menu-scale, 1));
+			}
+			
 			.allowfat .hl-message{
 				max-width: 300px;
 				word-break: keep-all;
@@ -791,6 +797,7 @@
 
 			.hl-badges {
 				margin-left: 4px;
+				vertical-align: text-bottom;
 			}
 			.hl-badges:first-child {
 				margin-left: 0;
@@ -860,9 +867,7 @@
 			.horizontal .compactmode.time-arrived {
 				margin: auto 0;
 			}
-			.larger-emojis:not(.expand) .hl-message {
-				line-height: 34px !important;
-			}
+			
 
 			.horizontal .highlight-chat.larger-emojis {
 				line-height: 30px;
@@ -895,6 +900,7 @@
 				height: var(--stylized-img);
 				max-width: calc(var(--stylized-img) * 3);
 				max-height: var(--stylized-img);
+				vertical-align: middle;
 			}
 
 
@@ -947,7 +953,11 @@
 
 			.notcompactmode .larger-emojis .icon {
 				margin: 5px 2px auto 1px;
-			}
+			} 
+			
+			.notcompactmode .larger-emojis > img.icon {
+				margin: 3px 2px auto 1px;
+			} 
 			
 			.notcompactmode .larger-emojis .leftside.larger-emojis .icon{
 				margin: 0px 2px auto 1px;
@@ -1203,7 +1213,7 @@
 			}
 
 			.donationAmount {
-				text-shadow: 0 0 10px #fff, 0 0 20px #fff, 0 0 30px #ffe60073, 0 0 40px #ffe60073, 0 0 50px #ffe60073, 0 0 60px #ffe60073, 0 0 70px #ffe60073;
+				text-shadow: 0 0 10px #fff, 0 0 20px #fff, 0 0 30px var(--donation-amount), 0 0 40px var(--donation-amount), 0 0 50px var(--donation-amount), 0 0 60px var(--donation-amount), 0 0 70px var(--donation-amount);
 				padding-left: 5px;
 				margin: auto;
 				white-space: nowrap;
@@ -2491,6 +2501,8 @@
 			var doubleLimit = false;
 			
 			var encode = false;
+			
+			
 
 			try {
 				if (electronApi) {
@@ -3203,6 +3215,11 @@
 				nobeephost = true;
 			}
 			
+			var nobeepevent = false;
+			if (urlParams.has("nobeepevent")) {
+				nobeepevent = true;
+			}
+			
 			var nobeepmod = false;
 			if (urlParams.has("nobeepmod")) {
 				nobeepmod = true;
@@ -3210,10 +3227,11 @@
 			
 			var stylizeEmoji = false;
 			if (urlParams.has("emoji") || urlParams.has("emojis")) {
-				stylizeEmoji = urlParams.get("emoji") || urlParams.get("emojis") || "140%";
-				document.documentElement.style.setProperty("--stylized-emoji", stylizeEmoji);
-				document.documentElement.style.setProperty("--message-line-height", "30px");
-				document.documentElement.style.setProperty("--stylized-img", "35px");
+				stylizeEmoji = urlParams.get("emoji") || urlParams.get("emojis") || "140";
+				const scale = (parseFloat(stylizeEmoji) / 100) || 1;
+				document.documentElement.style.setProperty("--stylized-emoji", `${100 * scale}%`);
+				document.documentElement.style.setProperty("--message-line-height", `${21 * scale}px`);
+				document.documentElement.style.setProperty("--stylized-img", `${scale * 21}px`);
 			}
 
 			var flexOrNotToFlex = "flex";
@@ -3269,6 +3287,173 @@
 			if (urlParams.has("noavatar") || urlParams.has("noavatars")) {
 				avatars = false;
 			}
+			
+			const colors = [
+			  'aliceblue', 'antiquewhite', 'aqua', 'aquamarine', 'azure',
+			  'beige', 'bisque', 'black', 'blanchedalmond', 'blue', 'blueviolet', 'brown', 'burlywood',
+			  'cadetblue', 'chartreuse', 'chocolate', 'coral', 'cornflowerblue', 'cornsilk', 'crimson', 'cyan',
+			  'darkblue', 'darkcyan', 'darkgoldenrod', 'darkgray', 'darkgreen', 'darkgrey', 'darkkhaki', 'darkmagenta', 'darkolivegreen', 'darkorange', 'darkorchid', 'darkred', 'darksalmon', 'darkseagreen', 'darkslateblue', 'darkslategray', 'darkslategrey', 'darkturquoise', 'darkviolet', 'deeppink', 'deepskyblue', 'dimgray', 'dimgrey', 'dodgerblue',
+			  'firebrick', 'floralwhite', 'forestgreen', 'fuchsia',
+			  'gainsboro', 'ghostwhite', 'gold', 'goldenrod', 'gray', 'green', 'greenyellow', 'grey',
+			  'honeydew', 'hotpink',
+			  'indianred', 'indigo', 'ivory',
+			  'khaki',
+			  'lavender', 'lavenderblush', 'lawngreen', 'lemonchiffon', 'lightblue', 'lightcoral', 'lightcyan', 'lightgoldenrodyellow', 'lightgray', 'lightgreen', 'lightgrey', 'lightpink', 'lightsalmon', 'lightseagreen', 'lightskyblue', 'lightslategray', 'lightslategrey', 'lightsteelblue', 'lightyellow', 'lime', 'limegreen', 'linen',
+			  'magenta', 'maroon', 'mediumaquamarine', 'mediumblue', 'mediumorchid', 'mediumpurple', 'mediumseagreen', 'mediumslateblue', 'mediumspringgreen', 'mediumturquoise', 'mediumvioletred', 'midnightblue', 'mintcream', 'mistyrose', 'moccasin',
+			  'navajowhite', 'navy',
+			  'oldlace', 'olive', 'olivedrab', 'orange', 'orangered', 'orchid',
+			  'palegoldenrod', 'palegreen', 'paleturquoise', 'palevioletred', 'papayawhip', 'peachpuff', 'peru', 'pink', 'plum', 'powderblue', 'purple',
+			  'rebeccapurple', 'red', 'rosybrown', 'royalblue',
+			  'saddlebrown', 'salmon', 'sandybrown', 'seagreen', 'seashell', 'sienna', 'silver', 'skyblue', 'slateblue', 'slategray', 'slategrey', 'snow', 'springgreen', 'steelblue',
+			  'tan', 'teal', 'thistle', 'tomato', 'turquoise',
+			  'violet',
+			  'wheat', 'white', 'whitesmoke',
+			  'yellow', 'yellowgreen'
+			];
+			
+			function processTierParam(urlParams) {
+				let tiers = [];
+				// ! I would def be okay with a blue, purple, and gold outline on gifts 500 - 10k 10k-20k and then 20k+.
+				if (urlParams.has("t1")){
+					let [threshold, color] = [urlParams.get("t1") || 0, urlParams.get("t1c") || "#00F" ];
+					color = color.replace("#","");
+					if (colors.includes(colors)){
+						// color name
+					} else if (color.length === 3){
+						if (highlightDonos){
+							color="#"+color+"3";
+						} else {
+							color="#"+color;
+						}
+					} else if (color.length === 4){
+						color="#"+color;
+					} else if (color.length === 6){
+						if (highlightDonos){
+							color="#"+color+"33";
+						} else {
+							color="#"+color;
+						}
+					} else if (color.length === 8){
+						color="#"+color;
+					}
+					tiers.push([parseFloat(threshold)||0, color]);
+				}
+				if (urlParams.has("t2")){
+					let [threshold, color] = [urlParams.get("t2") || 0,urlParams.get("t2c") || "#F0F" ];
+					color = color.replace("#","");
+					if (colors.includes(colors)){
+						// color name
+					} else if (color.length === 3){
+						if (highlightDonos){
+							color="#"+color+"3";
+						} else {
+							color="#"+color;
+						}
+					} else if (color.length === 4){
+						color="#"+color;
+					} else if (color.length === 6){
+						if (highlightDonos){
+							color="#"+color+"33";
+						} else {
+							color="#"+color;
+						}
+					} else if (color.length === 8){
+						color="#"+color;
+					}
+					tiers.push([parseFloat(threshold)||0, color]);
+				}
+				if (urlParams.has("t3")){
+					let [threshold, color] = [urlParams.get("t3") || 0,urlParams.get("t3c") || "#FDD035" ];
+					color = color.replace("#","");
+					if (colors.includes(colors)){
+						// color name
+					} else if (color.length === 3){
+						if (highlightDonos){
+							color="#"+color+"3";
+						} else {
+							color="#"+color;
+						}
+					} else if (color.length === 4){
+						color="#"+color;
+					} else if (color.length === 6){
+						if (highlightDonos){
+							color="#"+color+"33";
+						} else {
+							color="#"+color;
+						}
+					} else if (color.length === 8){
+						color="#"+color;
+					}
+					tiers.push([parseFloat(threshold)||0, color]);
+				}
+				
+				tiers.sort((a, b) => b[0] - a[0]); // Sort descending
+				
+				return tiers?.length ? tiers : null;
+			}
+
+			function getColorForAmount(data) {
+				
+				let amount = data.donoValue || toUSD(data.donation || data.hasDonation);
+				
+				for (const [threshold, color] of tiers) {
+					if (amount >= threshold) return color;
+				}
+				return null;
+			}
+			
+			function toUSD(value) {
+			  const rates = {
+				EUR: 1.08,
+				GBP: 1.26,
+				JPY: 0.0067,
+				CHF: 1.12,
+				AUD: 0.66,
+				CAD: 0.74,
+				CNY: 0.14,
+				HKD: 0.13,
+				NZD: 0.61,
+				KRW: 0.00075
+			  };
+
+			  const items = {
+				diamond: 0.005,
+				gold: 0.01,
+				coin: 0.01,
+				rose: 0.01,
+				gift: 0.02 // this is just a guess
+			  };
+
+			  if (typeof value !== 'string') value = String(value);
+			  value = value.trim().toLowerCase();
+			  
+			  const numericValue = value.replace(/[^\d.-]/g, '');
+			  const amount = parseFloat(numericValue);
+			  
+			  if (isNaN(amount)) return 0;
+
+			  // Handle items like "3 coins" or "2 roses"
+			  for (const [item, rate] of Object.entries(items)) {
+				if (value.includes(item) || value.includes(item + 's')) {
+				  return amount * rate;
+				}
+			  }
+			  
+			  // Strip common currency symbols for better detection
+			  const cleanValue = value.replace(/[$€£¥]/g, '').trim();
+			  
+			  // Handle currency codes with symbols like "$1 CAD"
+			  for (const [currency, rate] of Object.entries(rates)) {
+				if (cleanValue.includes(currency.toLowerCase())) {
+				  return amount * rate;
+				}
+			  }
+			  
+			  // Default to USD if no other currency found
+			  return amount;
+			}
+			
+			const tiers = processTierParam(urlParams);
 
 			if (urlParams.has("limit")) {
 				customNodeLimit = parseInt(urlParams.get("limit")) || 200;
@@ -3375,10 +3560,11 @@
 				document.documentElement.style.setProperty("--scale-output", scale);
 				autoScrollCatch *= scale;
 			}
-
+			
+			
 			var conCon = 1;
 			var socketserver = false;
-			var serverURL = "wss://io.socialstream.ninja/api";
+			var serverURL = urlParams.has("localserver") ? "ws://127.0.0.1:3000" : "wss://io.socialstream.ninja/api";
 			var reconnectionTimeout = null;
 			function setupSocket() {
 				// Clear any existing reconnection timeout
@@ -3443,7 +3629,7 @@
 
 			var conConExtension = 1;
 			var socketserverExtension = false;
-			var serverURLExtension = "wss://io.socialstream.ninja/extension";
+			var serverURLExtension = urlParams.has("localserver") ? "ws://127.0.0.1:3000" : "wss://io.socialstream.ninja/extension";
 			var server2 = false;
 			var server3 = false;
 			var reconnectionTimeoutExtension = null;
@@ -3823,11 +4009,29 @@
 					return text;
 				}
 			}
+			
+			function cleanPunctuation(text) {
+				if (!text) return text;
+				
+				return text
+					.replace(/[.]{2,}/g, '.')
+					.replace(/[?]{2,}/g, '?')
+					.replace(/[!]{2,}/g, '!')
+					.replace(/[,]{2,}/g, ',')
+					.replace(/[:]{2,}/g, ':')
+					.replace(/[;]{2,}/g, ';')
+					.replace(/[-]{2,}/g, '-')
+					.replace(/^[\s.!?,;:-]+$/, '')
+					.trim();
+			}
 
 			function speak(text, allow = false) {
 				if (!speech && !allow) {
 					return;
 				}
+				
+				text = cleanPunctuation(text);
+				
 				if (!text) {
 					return;
 				}
@@ -4335,6 +4539,11 @@
 			var stripDonationData = false;
 			if (urlParams.has("stripdonations")) {
 				stripDonationData = true;
+			}
+			
+			var skipDonations = false;
+			if (urlParams.has("skipdonations")) {
+				skipDonations = true;
 			}
 
 			var clock24hr = false;
@@ -5503,7 +5712,13 @@
 						}
 
 						try {
-							document.querySelector("[data-mid='" + data.mid + "']").classList.add(pressedClass);
+							
+							document.querySelectorAll("." + lastMessageClass).forEach(ele => {
+								// last message sent was to clear the overlay
+								ele.classList.remove(lastMessageClass); // no overlay is now active.
+							});
+							document.querySelector("[data-mid='" + data.mid + "']").classList.add(pressedClass, lastMessageClass); // add last-message class
+							
 						} catch (e) {
 							setTimeout(
 								function (mid) {
@@ -5516,6 +5731,10 @@
 							); // if delayed, we will try again.
 						}
 						return true;
+					} else if (syncDocks || force) {
+						document.querySelectorAll("." + lastMessageClass).forEach(ele => {
+							ele.classList.remove(lastMessageClass); // no overlay is now active.
+						});
 					}
 					return;
 				} else if ("pin" in data) {
@@ -7409,6 +7628,10 @@
 						}
 					}
 					
+					if (skipDonations && (data.hasDonation || data.donation)){
+						return;
+					}
+					
 					if (data.message && !data.chatmessage){
 						data.chatmessage = data.message;
 					}
@@ -7564,25 +7787,31 @@
 						data.chatmessage = "";
 					}
 
-					if (writer) {
-						let date = new Date();
-						date = date.toLocaleString("en-US", { hour: "numeric", minute: "numeric", second: "numeric", hour12: true });
-						let text;
-						
-						let extra = ""
-						if (saveimg){
-							extra = "\t" +  (data.chatimg || "") ;
-						}
-						
-						if ("sentiment" in data) {
-							text = encode((data.chatname || "") + "\t" + (data.chatmessage || "") + "\t" + (showType || "") + "\t" + (date || "") + extra + "\t" + (data.sentiment || "") + "\n");
-						} else if ("karma" in data) {
-							text = encode((data.chatname || "") + "\t" + (data.chatmessage || "") + "\t" + (showType || "") + "\t" + (date || "") + extra + "\t" + (data.karma || "") + "\n");
-						} else {
-							text = encode((data.chatname || "") + "\t" + (data.chatmessage || "") + "\t" + (showType || "") + "\t" + (date || "") + extra + "\n");
-						}
-						if (writer) {
-							writer.write(text);
+					if (writer && isStreamSetup) {
+						try {
+							const date = new Date().toLocaleString("en-US", { 
+								hour: "numeric", 
+								minute: "numeric", 
+								second: "numeric", 
+								hour12: true 
+							});
+							
+							const extra = saveimg ? `\t${data.chatimg || ""}` : "";
+							
+							let text;
+							if ("sentiment" in data) {
+								text = `${data.chatname || ""}\t${data.chatmessage || ""}\t${showType || ""}\t${date}${extra}\t${data.sentiment || ""}\n`;
+							} else if ("karma" in data) {
+								text = `${data.chatname || ""}\t${data.chatmessage || ""}\t${showType || ""}\t${date}${extra}\t${data.karma || ""}\n`;
+							} else {
+								text = `${data.chatname || ""}\t${data.chatmessage || ""}\t${showType || ""}\t${date}${extra}\n`;
+							}
+							
+							writer.write(encode(text));
+						} catch (err) {
+							console.error("Write failed:", err);
+							resetStream();
+							setupSaveToDisk(); // Attempt to reinitialize
 						}
 					}
 
@@ -7980,12 +8209,23 @@
 							node.style.backgroundColor = data.highlightColor;
 						}
 					}
-
+					
 					if (data.hasDonation) {
 						if (highlightDonos && !bubble) {
 							node.classList.add("dono-highlight");
 						}
 						node.classList.add("donation");
+						
+						if (tiers){
+							let color = getColorForAmount(data);
+							if (color){
+								if (highlightDonos){
+									node.style.backgroundColor = color;
+								} else {
+									node.style.setProperty("--donation-amount", color);
+								}
+							}
+						}
 					} else {
 						node.classList.add("noDono");
 					}
@@ -8068,7 +8308,7 @@
 					});
 					
 					if (beep) { 
-						if (!(nobeepbot && bot) && !(nobeephost && host) && !(nobeepmod && mod)){
+						if (!(nobeepbot && bot) && !(nobeephost && host) && !(nobeepmod && mod) && !(nobeepevent && data.event)){
 							playtone();
 						}
 					}
@@ -8651,28 +8891,54 @@
 				traverseAndTruncate(tempDiv, maxLength);
 				return tempDiv.innerHTML;
 			}
-
+			var isStreamSetup = false;
+			
 			function setupSaveToDisk() {
-				var script = document.createElement("script");
-				script.onload = function () {
-					if (!fileStream) {
-						fileStream = streamSaver.createWriteStream("chat_" + Date.now() + ".tsv" || "sample.txt");
-						writer = fileStream.getWriter();
-					}
-					
-					window.isSecureContext &&
-						window.addEventListener("beforeunload", async evt => {
-							await writer.close();
-							writer = null;
-						});
-					window.isSecureContext &&
-						window.addEventListener("pagehide", async evt => {
-							await writer.close();
-							writer = null;
-						});
-				};
+				if (isStreamSetup) return;
+				
+				const script = document.createElement("script");
+				script.onload = initializeStream;
+				script.onerror = () => console.error("Failed to load StreamSaver");
 				script.src = "./thirdparty/StreamSaver.js";
 				document.head.appendChild(script);
+			}
+			
+			
+			function initializeStream() {
+				try {
+					if (!fileStream) {
+						const filename = `chat_${Date.now()}.tsv`;
+						fileStream = streamSaver.createWriteStream(filename);
+						writer = fileStream.getWriter();
+					}
+
+					if (window.isSecureContext) {
+						window.addEventListener("beforeunload", closeWriter);
+						window.addEventListener("pagehide", closeWriter);
+					}
+					
+					isStreamSetup = true;
+				} catch (err) {
+					console.error("Stream initialization failed:", err);
+					resetStream();
+				}
+			}
+			
+			async function closeWriter() {
+				try {
+					if (writer) {
+						await writer.close();
+						resetStream();
+					}
+				} catch (err) {
+					console.error("Error closing writer:", err);
+				}
+			}
+			
+			function resetStream() {
+				writer = null;
+				fileStream = null;
+				isStreamSetup = false;
 			}
 
 			async function overwriteFile(data = false) {
@@ -8799,6 +9065,12 @@
 							menuState = 1;
 							menu.classList.add("context-menu--active");
 							document.addEventListener("click", menuClickListener);
+							
+							const scale = Math.min(1, window.innerHeight / menu.scrollHeight);
+							if (scale){
+								menu.style.setProperty('--menu-scale', scale);
+							}
+							  
 						}
 					}
 
@@ -9062,25 +9334,47 @@
 
 				input.addEventListener("blur", function (event) {
 					if (menu.matches(":focus-within:not(:focus)") || menu.matches(":focus-within")) {
-						// if a sibling has focus, don't close and retake focus
-						input.focus(); // re-refocus text input.
+						input.focus();
 						return;
 					}
 					if (input.classList.contains("locked")) {
 						return;
 					}
-
 					event.preventDefault();
 					event.stopPropagation();
-
-					if (document.getElementById("say_hello")){
-						document.getElementById("say_hello").addEventListener("click", toggleInput);
+					
+					if (document.getElementById("say_hello")) {
+						const element = document.getElementById("say_hello");
+						
+						const handleInput = (e) => {
+							if (e) e.preventDefault();
+							toggleInput(e);
+						};
+						
+						element.addEventListener("mouseup", function(e) {
+							if (e.button === 0 || e.button === 1) {
+								handleInput(e);
+							}
+						});
+						element.addEventListener("touchend", handleInput);
 					}
 					menu.classList.add("hidden");
+					
 					setTimeout(function () {
-						// click vs hold
-						if (document.getElementById("say_hello")){
-							document.getElementById("say_hello").addEventListener("click", toggleInput);
+						if (document.getElementById("say_hello")) {
+							const element = document.getElementById("say_hello");
+							
+							const handleInput = (e) => {
+								if (e) e.preventDefault();
+								toggleInput(e);
+							};
+							
+							element.addEventListener("mouseup", function(e) {
+								if (e.button === 0 || e.button === 1) {
+									handleInput(e);
+								}
+							});
+							element.addEventListener("touchend", handleInput);
 						}
 					}, 300);
 					return false;
@@ -9126,8 +9420,20 @@
 					return false;
 				});
 
-				if (document.getElementById("say_hello")){
-					document.getElementById("say_hello").addEventListener("click", toggleInput);
+				if (document.getElementById("say_hello")) {
+					const element = document.getElementById("say_hello");
+					
+					const handleInput = (e) => {
+						if (e) e.preventDefault();
+						toggleInput(e);
+					};
+					
+					element.addEventListener("mouseup", function(e) {
+						if (e.button === 0 || e.button === 1) {
+							handleInput(e);
+						}
+					});
+					element.addEventListener("touchend", handleInput);
 				}
 			})();
 			

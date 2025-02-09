@@ -102,7 +102,6 @@ if (typeof chrome.runtime == "undefined") {
 	chrome.storage = {};
 	chrome.storage.sync = {};
 	chrome.storage.sync.set = function (data) {
-		log("SYNC SET", data);
 		ipcRenderer.sendSync("storageSave", data);
 		log("ipcRenderer.sendSync('storageSave',data);");
 	};
@@ -117,6 +116,7 @@ if (typeof chrome.runtime == "undefined") {
 
 	chrome.storage.local = {};
 	chrome.storage.local.get = async function (arg, callback) {
+		log("LOCAL SYNC GET");
 		var response = await ipcRenderer.sendSync("storageGet", arg);
 		callback(response);
 	};
@@ -463,18 +463,18 @@ function generateVariationsList(words) {
 }
 
 function createProfanityHashTable(profanityVariationsList) {
-	const hashTable = {};
-	for (let i = 0; i < profanityVariationsList.length; i++) {
-		const word = profanityVariationsList[i].toLowerCase();
-		for (let j = 0; j < word.length; j++) {
-			const character = word[j];
-			if (!hashTable[character]) {
-				hashTable[character] = {};
-			}
-			hashTable[character][word] = true;
-		}
-	}
-	return hashTable;
+    const hashTable = {};
+    for (let word of profanityVariationsList) {
+        word = word.trim().toLowerCase();
+        if (!word) continue;
+        
+        const firstChar = word.charAt(0);
+        if (!hashTable[firstChar]) {
+            hashTable[firstChar] = {};
+        }
+        hashTable[firstChar][word] = true;
+    }
+    return hashTable;
 }
 
 function isProfanity(word) {
@@ -489,16 +489,39 @@ function isProfanity(word) {
 	}
 	return Boolean(words[wordLower]);
 }
+
 function filterProfanity(sentence) {
-	let words = sentence.toLowerCase().split(/[\s\.\-_!?,]+/);
-	const uniqueWords = new Set(words);
-	for (let word of uniqueWords) {
-		if (isProfanity(word)) {
-			sentence = sentence.replace(new RegExp("\\b" + word + "\\b", "gi"), "*".repeat(word.length));
-		}
-	}
-	return sentence;
+    let filteredSentence = sentence;
+    
+    // Handle multi-word phrases first
+    if (profanityHashTable) {
+        Object.values(profanityHashTable)
+            .flatMap(obj => Object.keys(obj))
+            .filter(word => word.includes(' '))
+            .sort((a, b) => b.length - a.length)
+            .forEach(phrase => {
+                const escapedPhrase = phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                const phraseRegex = new RegExp(escapedPhrase, 'gi');
+                filteredSentence = filteredSentence.replace(phraseRegex, match => '*'.repeat(match.length));
+            });
+    }
+    
+    // Handle single words
+    const words = filteredSentence.split(/[\s\.\-_!?,]+/);
+    const uniqueWords = [...new Set(words)];
+    
+    for (let word of uniqueWords) {
+        if (word && isProfanity(word)) {
+            const escapedWord = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            // Updated regex to handle punctuation
+            const wordRegex = new RegExp(`(?<!\\w)(${escapedWord}(?:${escapedWord})*?)(?:[\\s\\.,!\\?]|$)`, 'gi');
+            filteredSentence = filteredSentence.replace(wordRegex, match => '*'.repeat(match.length));
+        }
+    }
+    
+    return filteredSentence;
 }
+
 var profanityHashTable = false;
 
 function initialLoadBadWords(){
@@ -645,9 +668,9 @@ function validateRoomId(roomId) {
 	return sanitizedId;
 }
 
+var loadedFirst = false;
 function loadSettings(item, resave = false) {
 	log("loadSettings (or saving new settings)", item);
-
 	let reloadNeeded = false;
 
 	if (item && item.streamID) {
@@ -669,15 +692,16 @@ function loadSettings(item, resave = false) {
 				}
 			}
 			reloadNeeded = true;
+			chrome.storage.sync.set({ streamID});
+			chrome.runtime.lastError;
 		}
 	} else if (!streamID) {
-		reloadNeeded = true;
+		
 		streamID = generateStreamID(); // not stream ID, so lets generate one; then lets save it.
 		streamID = validateRoomId(streamID);
 		if (!streamID){
 			streamID = generateStreamID();
 		}
-		
 		streamID = validateRoomId(streamID);
 		if (!streamID){
 			try {
@@ -694,26 +718,34 @@ function loadSettings(item, resave = false) {
 			}
 		}
 		
-		if (!isSSAPP) {
-			resave = true;
-			if (item) {
-				item.streamID = streamID;
-			} else {
-				item = {};
-				item.streamID = streamID;
-			}
+		if (item) {
+			item.streamID = streamID;
+		} else {
+			item = {};
+			item.streamID = streamID;
 		}
+		
+		reloadNeeded = true;
+		chrome.storage.sync.set({ streamID});
+		chrome.runtime.lastError;
 	}
 
 	if (item && "password" in item) {
 		if (password != item.password) {
 			password = item.password;
+			
 			reloadNeeded = true;
+			chrome.storage.sync.set({ password});
+			chrome.runtime.lastError;
 		}
 	}
 
 	if (item && item.settings) {
 		settings = item.settings;
+		
+		Object.keys(patterns).forEach(pattern=>{
+			settings[pattern] = findExistingEvents(pattern,{ settings });
+		})
 	}
 
 	if (item && "state" in item) {
@@ -727,15 +759,15 @@ function loadSettings(item, resave = false) {
 		updateExtensionState(false);
 	}
 
-	if (resave) {
-		chrome.storage.sync.set(item);
-		chrome.runtime.lastError;
-	}
 
 	try {
 		if (isSSAPP && ipcRenderer) {
-			ipcRenderer.sendSync("fromBackground", { streamID, password, settings, state: isExtensionOn });
+			ipcRenderer.sendSync("fromBackground", { streamID, password, settings, state: isExtensionOn }); 
 			//ipcRenderer.send('backgroundLoaded');
+			if (resave && settings){
+				chrome.storage.sync.set({ settings});
+				chrome.runtime.lastError;
+			}
 		}
 	} catch (e) {
 		console.error(e);
@@ -749,7 +781,8 @@ function loadSettings(item, resave = false) {
 		}
 	}
 
-	for (var i = 1; i <= 10; i++) {
+	const timedMessage = settings['timedMessage'] || [];
+	for (const i of timedMessage) {
 		if (settings["timemessageevent" + i]) {
 			if (settings["timemessagecommand" + i]) {
 				checkIntervalState(i);
@@ -760,6 +793,8 @@ function loadSettings(item, resave = false) {
 	if (settings.translationlanguage) {
 		changeLg(settings.translationlanguage.optionsetting);
 	}
+	
+	loadedFirst = true;
 }
 ////////////
 
@@ -1142,6 +1177,7 @@ async function overwriteFileExcel(data = false) {
 
 async function resetSettings(item = false) {
 	log("reset settings");
+	//alert("Settings reset");
 	chrome.storage.sync.get(properties, async function (item) {
 		if (!item) {
 			item = {};
@@ -2745,7 +2781,7 @@ async function processIncomingMessage(message, sender=null){
 chrome.runtime.onMessage.addListener(async function (request, sender, sendResponseReal) {
 	var response = {};
 	var alreadySet = false;
-		
+	
 	function sendResponse(msg) {
 		if (alreadySet) {
 		  console.error("Shouldn't run sendResponse twice");
@@ -2756,6 +2792,19 @@ chrome.runtime.onMessage.addListener(async function (request, sender, sendRespon
 		  sendResponseReal(msg);
 		}
 		response = msg;
+	}
+	
+	if (!loadedFirst){
+		for (var i = 0 ;i < 100;i++){
+			await sleep(100);
+			if (loadedFirst){
+				break;
+			}
+		}
+		// add a stall here instead if this actually happens
+		if (!loadedFirst){
+			return sendResponse({"tryAgain":true});
+		}
 	}
 	
 	try {
@@ -2773,7 +2822,7 @@ chrome.runtime.onMessage.addListener(async function (request, sender, sendRespon
 		} else if (request.cmd && request.cmd === "getOnOffState") {
 			sendResponse({ state: isExtensionOn, streamID: streamID, password: password, settings: settings });
 		} else if (request.cmd && request.cmd === "getSettings") {
-			try {
+			try { 
 				sendResponse({ state: isExtensionOn, streamID: streamID, password: password, settings: settings, documents: documentsRAG});
 			} catch(e){
 				sendResponse({ state: isExtensionOn, streamID: streamID, password: password, settings: settings});
@@ -2803,6 +2852,10 @@ chrome.runtime.onMessage.addListener(async function (request, sender, sendRespon
 			} else {
 				settings[request.setting] = request.value;
 			}
+			
+			Object.keys(patterns).forEach(pattern=>{
+				settings[pattern] = findExistingEvents(pattern,{ settings });
+			})
 
 			chrome.storage.local.set({
 				settings: settings
@@ -2918,6 +2971,9 @@ chrome.runtime.onMessage.addListener(async function (request, sender, sendRespon
 				pushSettingChange();
 			}
 			if (request.setting == "flipYoutube") {
+				pushSettingChange();
+			}
+			if (request.setting == "hidePaidPromotion") {
 				pushSettingChange();
 			}
 			if (request.setting == "fancystageten") {
@@ -3167,8 +3223,8 @@ chrome.runtime.onMessage.addListener(async function (request, sender, sendRespon
 			if (sender.tab.url) {
 				var SEVENTV2 = await getSEVENTVEmotes(sender.tab.url, request.type, request.channel); // query my API to see if I can resolve the Channel avatar from the video ID
 				if (SEVENTV2) {
-					//	console.log(sender);
-					//	console.log(SEVENTV2);
+					//	//console.logsender);
+					//	//console.logSEVENTV2);
 					chrome.tabs.sendMessage(sender.tab.id, { SEVENTV: SEVENTV2 }, function (response = false) {
 						chrome.runtime.lastError;
 					});
@@ -3176,13 +3232,13 @@ chrome.runtime.onMessage.addListener(async function (request, sender, sendRespon
 			}
 		} else if ("getFFZ" in request) {
 			// forwards messages from Youtube/Twitch/Facebook to the remote dock via the VDO.Ninja API
-			//console.log("getFFZ");
+			////console.log"getFFZ");
 			sendResponse({ state: isExtensionOn });
 			if (sender.tab.url) {
 				var FFZ2 = await getFFZEmotes(sender.tab.url, request.type, request.channel); // query my API to see if I can resolve the Channel avatar from the video ID
 				if (FFZ2) {
-					//	console.log(sender);
-					//	console.log(FFZ2);
+					//	//console.logsender);
+					//	//console.logFFZ2);
 					chrome.tabs.sendMessage(sender.tab.id, { FFZ: FFZ2 }, function (response = false) {
 						chrome.runtime.lastError;
 					});
@@ -3258,7 +3314,7 @@ chrome.runtime.onMessage.addListener(async function (request, sender, sendRespon
 			sendResponse({ state: isExtensionOn });
 			newFileHandle = false;
 		} else if (request.cmd && request.cmd === "selectwinner") {
-			//console.log(request);
+			////console.logrequest);
 			if ("value" in request) {
 				resp = selectRandomWaitlist(parseInt(request.value) || 1);
 			} else {
@@ -3493,7 +3549,7 @@ function verifyOriginalNewIncomingMessage(msg, cleaned=false) {
 		return true;
 	}
 	
-	// console.log(msg,lastSentMessage);
+	// //console.logmsg,lastSentMessage);
 	
 	try {
 		if (!cleaned){
@@ -3501,16 +3557,16 @@ function verifyOriginalNewIncomingMessage(msg, cleaned=false) {
 		}
 		
 		var score = fastMessageSimilarity(msg, lastSentMessage);
-		// console.log(msg, score);
+		// //console.logmsg, score);
 		if (score > 0.5) { // same message
 			
 			lastMessageCounter += 1;
 			if (lastMessageCounter>1) {
-				// console.log("1");
+				// //console.log"1");
 				return false;
 			}
 			if (settings.hideallreplies){
-				// console.log("2");
+				// //console.log"2");
 				return false;
 			}
 		}
@@ -3665,7 +3721,7 @@ async function sendToDestinations(message) {
 		}
 
 		if (settings.filtereventstoggle && settings.filterevents && settings.filterevents.textsetting && message.chatmessage && message.event) {
-			if (settings.filterevents.textsetting.split(",").some(v => message.chatmessage.includes(v))) {
+			if (settings.filterevents.textsetting.split(",").some(v => (v.trim() && message.chatmessage.includes(v)))) {
 				return false;
 			}
 		}
@@ -3752,8 +3808,10 @@ async function sendToDestinations(message) {
 	sendToDisk(message);
 	sendToH2R(message);
 	sendToPost(message);
-	sendToDiscord(message);
-	addMessageDB(message);
+	sendToDiscord(message);  // donos only
+	if (message.chatmessage || message.hasDonation || message.chatname){
+		message.idx = await addMessageDB(message);
+	}
 	return true;
 }
 function unescapeHtml(safe) {
@@ -3989,7 +4047,7 @@ function checkExactDuplicateAlreadyReceived(msg, sanitized=true, tabid=false, ty
 }
 
 function sendToS10(data, fakechat=false, relayed=false) {
-	console.log("sendToS10",data);
+	//console.log"sendToS10",data);
 	if (settings.s10 && settings.s10apikey && settings.s10apikey.textsetting) {
 		try {
 			// msg =  '{
@@ -4023,10 +4081,10 @@ function sendToS10(data, fakechat=false, relayed=false) {
 				if (data.bot) {
 					return null;
 				}
-				//console.log(".");
+				////console.log".");
 				// checkExactDuplicateAlreadyRelayed(msg, sanitized=true, tabid=false, save=true) 
 				if (checkExactDuplicateAlreadyRelayed(cleaned, data.textonly, data.tid, false)){
-					//console.log("--");
+					////console.log"--");
 					return;
 				}
 			} else if (!fakechat && checkExactDuplicateAlreadyRelayed(cleaned, data.textonly, data.tid, false)){
@@ -4308,9 +4366,10 @@ function sendToPost(data) {
 		}
 	}
 }
+
 var socketserverDock = false;
-var serverURLDock = "wss://io.socialstream.ninja/dock";
-var conConDock = 0;
+var serverURLDock = urlParams.has("localserver") ? "ws://127.0.0.1:3000" : "wss://io.socialstream.ninja/dock";
+var conConDock = 0; 
 var reconnectionTimeoutDock = null;
 
 function setupSocketDock() {
@@ -4377,7 +4436,7 @@ function setupSocketDock() {
 //
 
 var socketserver = false;
-var serverURL = "wss://io.socialstream.ninja/api";
+var serverURL = urlParams.has("localserver") ? "ws://127.0.0.1:3000" : "wss://io.socialstream.ninja/api";
 var conCon = 0;
 var reconnectionTimeout = null;
 
@@ -4508,7 +4567,7 @@ function setupSocket() {
 				downloadWaitlist();
 				resp = true;
 			} else if (data.action && data.action === "selectwinner") {
-				//console.log(data);
+				////console.logdata);
 				if ("value" in data) {
 					resp = selectRandomWaitlist(parseInt(data.value) || 1);
 				} else {
@@ -5413,7 +5472,7 @@ function safeDebuggerAttach(tabId, version, callback) {
   try {
     chrome.debugger.attach({ tabId: tabId }, version, () => {
       if (chrome.runtime.lastError) {
-        console.log('Debugger attach error:', chrome.runtime.lastError);
+        //console.log'Debugger attach error:', chrome.runtime.lastError);
         callback(chrome.runtime.lastError);
         return;
       }
@@ -5421,7 +5480,7 @@ function safeDebuggerAttach(tabId, version, callback) {
       callback();
     });
   } catch(e) {
-    console.log('Debugger attach exception:', e);
+    //console.log'Debugger attach exception:', e);
     callback(e);
   }
 }
@@ -5574,20 +5633,20 @@ async function processIncomingRequest(request, UUID = false) { // from the dock 
 				  if (request.turbo) {
 						prompt = "You're an AI assistant. Keep responses limited to a few sentences.\n" + prompt;
 				  }
-				  let model = request.model || settings.ollamamodel?.textsetting || null;
+				  let model = request.model || null;
 				  const controller = new AbortController();
 				  
-				  callOllamaAPI(prompt, model, (chunk) => {
+				  callLLMAPI(prompt, model, (chunk) => {
 					sendDataP2P({ chatbotChunk: {value: chunk, target: request.target}}, UUID);
 				  }, controller, UUID, (request.images || null)).then((fullResponse) => {
 					sendDataP2P({ chatbotResponse: {value: fullResponse, target: request.target}}, UUID);
 				  }).catch((error) => {
-					console.error('Error in callOllamaAPI:', error);
-					sendDataP2P({ chatbotResponse: {value: "🚧", target: request.target}}, UUID);
+					console.error('Error in callLLMAPI:', error);
+					sendDataP2P({ chatbotResponse: {value: JSON.stringify(error), target: request.target}}, UUID);
 				  });
 				} catch(e) {
 				  console.error('Unexpected error:', e);
-				  sendDataP2P({ chatbotResponse: {value: "🚧", target: request.target}}, UUID);
+				  sendDataP2P({ chatbotResponse: {value: JSON.stringify(e), target: request.target}}, UUID);
 				}
 			}
 		}
@@ -5865,7 +5924,7 @@ function messagePopup(data) {
         if (chrome.runtime.lastError) {
             // console.warn("Error sending message:", chrome.runtime.lastError.message);
         } else {
-            // console.log("Message sent successfully:", response);
+            // //console.log"Message sent successfully:", response);
         }
     });
     return true;
@@ -5981,7 +6040,7 @@ function generalFakePoke(tabid) {
 			}
 		);
 	} catch (e) {
-		console.log(e);
+		//console.loge);
 		delayedDetach(tabid);
 	}
 }
@@ -6033,7 +6092,7 @@ async function sendMessageToTabs(data, reverse = false, metadata = null, relayMo
     
     lastAntiSpam = messageCounter;
     
-    var msg2Save = checkExactDuplicateAlreadyRelayed(data.response, false, false, true); 
+    var msg2Save = checkExactDuplicateAlreadyRelayed(data.response, false, false, true);  // this might be more efficient if I do it after, rather than before
     
     try {
         const tabs = await new Promise(resolve => chrome.tabs.query({}, resolve));
@@ -6088,29 +6147,48 @@ async function sendMessageToTabs(data, reverse = false, metadata = null, relayMo
                     // Generic handler
                     if (tab.url.includes("youtube.com/live_chat")) {
                         getYoutubeAvatarImage(tab.url, true);
-						let restxt = data.response.length > 200 ? data.response.substring(0, 200) : data.response;
+						let restxt = data.response;
+						
+						if (restxt.length > 200){
+							restxt = restxt.substring(0, 200);
+							var ignore = checkExactDuplicateAlreadyRelayed(restxt, false, false, true); 
+							if (ignore) {  
+								handleMessageStore(tab.id, ignore, now, relayMode);
+							}
+						}
+						
 						await attachAndChat(tab.id, restxt, true, true, false, false, overrideTimeout);
 						continue;
                     }
                     
                     if (tab.url.includes("tiktok.com")) {
+						let tiktokMessage = data.response;
+						
 						if (settings.notiktoklinks){
-							data.response = replaceURLsWithSubstring(data.response, "");
+							tiktokMessage = replaceURLsWithSubstring(tiktokMessage, "");
 						}
-						let restxt = data.response.length > 150 ? data.response.substring(0, 150) : data.response;
+						let restxt = tiktokMessage.length > 150 ? tiktokMessage.substring(0, 150) : tiktokMessage;
+						
+						if (restxt!==data.response){
+							var ignore = checkExactDuplicateAlreadyRelayed(restxt, false, false, true); 
+							if (ignore) {  
+								handleMessageStore(tab.id, ignore, now, relayMode);
+							}
+						}
+						
 						await attachAndChat(tab.id, restxt, true, true, false, false, overrideTimeout);
 						continue;
                     }
-
+					
                     await attachAndChat(tab.id, data.response, true, true, false, false, overrideTimeout);
                 }
             } catch (e) {
                 chrome.runtime.lastError;
-                console.log(e, tab);
+                //console.loge, tab);
             }
         }
     } catch (error) {
-        console.log('Error in sendMessageToTabs:', error);
+        //console.log'Error in sendMessageToTabs:', error);
         return false;
     }
     
@@ -6517,6 +6595,46 @@ try {
 } catch(e){}
 
  */
+const patterns = {
+	botReply: {
+	  prefixes: ['botReplyMessageEvent', 'botReplyMessageCommand', 'botReplyMessageValue', 'botReplyMessageTimeout', 'botReplyMessageSource', 'botReplyAll'],
+	  type: 'botReply'
+	},
+	chatCommand: {
+	  prefixes: ['chatevent', 'chatcommand', 'chatwebhook', 'chatcommandtimeout'],
+	  type: 'chatCommand'
+	},
+	timedMessage: {
+	  prefixes: ['timemessageevent', 'timemessagecommand', 'timemessageinterval', 'timemessageoffset'],
+	  type: 'timedMessage'
+	},
+	midiCommand: {
+	  prefixes: ['midievent', 'midicommand', 'midinote',  'mididevice'],
+	  type: 'midiCommand'
+	},
+};
+function findExistingEvents(eventType, response) {
+  const events = new Set();
+  const settings = response?.settings || {};
+  const pattern = patterns[eventType];
+  if (!pattern) return [];
+
+  // Check all possible settings for this event type
+  Object.keys(settings).forEach(key => {
+	pattern.prefixes.forEach(prefix => {
+	  if (key.startsWith(prefix)) {
+		const id = key.replace(prefix, '');
+		if (settings[key]?.setting !== undefined || 
+			settings[key]?.textsetting !== undefined || 
+			settings[key]?.numbersetting !== undefined) {
+		  events.add(parseInt(id));
+		}
+	  }
+	});
+  });
+
+  return Array.from(events).sort((a, b) => a - b);
+}
 
 // expects an object; not False/Null/undefined
 async function applyBotActions(data, tab = false) {
@@ -6768,7 +6886,7 @@ async function applyBotActions(data, tab = false) {
 		
 		
 		if (settings.joke && data.chatmessage && data.chatmessage.toLowerCase() === "!joke") {
-			//console.log(".");
+			////console.log".");
 			//if (Date.now() - messageTimeout > 5100) {
 				var score = parseInt(Math.random() * 378);
 				var joke = jokes[score];
@@ -6864,7 +6982,7 @@ async function applyBotActions(data, tab = false) {
 		}
 		
 		if (settings.dice && data.chatname && data.chatmessage && (data.chatmessage.toLowerCase().startsWith("!dice ") || data.chatmessage.toLowerCase() === "!dice")) {
-			//	console.log("dice detected");
+			//	//console.log"dice detected");
 			//if (Date.now() - messageTimeout > 5100) {
 				
 			let maxRoll = data.chatmessage.toLowerCase().split(" ");
@@ -6948,7 +7066,7 @@ async function applyBotActions(data, tab = false) {
 		} else if (settings.s10relay && !data.bot && data.chatmessage && data.chatname && !data.event){
 			sendToS10(data, false, true); // we'll handle the relay logic here instead
 		}
-		console.log(data);
+		//console.logdata);
 		
 		if (settings.forwardcommands2twitch && data.type && (data.type !== "twitch") && !data.reflection && !skipRelay && data.chatmessage && data.chatname && !data.event && tab && data.tid) {
 			if (!data.bot && data.chatmessage.startsWith("!")) {
@@ -6984,36 +7102,57 @@ async function applyBotActions(data, tab = false) {
 		}
 
 		if (data.chatmessage) {
-			for (var i = 1; i <= 10; i++) {
-				if (settings["botReplyMessageEvent" + i] && settings["botReplyMessageCommand" + i] && settings["botReplyMessageCommand" + i].textsetting && settings["botReplyMessageValue" + i] && settings["botReplyMessageValue" + i].textsetting && ((!settings.botReplyMessageFull && data.chatmessage.indexOf(settings["botReplyMessageCommand" + i].textsetting) != -1) || (settings.botReplyMessageFull && data.chatmessage && data.chatmessage == (settings["botReplyMessageCommand" + i].textsetting)))){
-					var matched = true;
-					//log(settings['botReplyMessageSource'+i]);
-					if (settings["botReplyMessageSource" + i] && settings["botReplyMessageSource" + i].textsetting.trim()) {
-						matched = false;
-
-						settings["botReplyMessageSource" + i].textsetting.split(",").forEach(xx => {
-							//log(xx,data.type);
-							if (xx && data.type && (xx.trim().toLowerCase() == data.type.trim().toLowerCase())) {
-								matched = true;
-							}
-						});
-					}
-					if (matched) {
-						var timeoutBot = 0;
-						if (settings["botReplyMessageTimeout" + i]) {
-							timeoutBot = settings["botReplyMessageTimeout" + i].numbersetting || 0;
-						}
-							// respond to "1" with a "1" automatically; at most 1 time per minute.
-						//messageTimeout = Date.now();
-						var msg = {};
-						if (data.tid && !settings["botReplyAll" + i]){
-							msg.tid = data.tid;
-						}
-						msg.response = settings["botReplyMessageValue" + i].textsetting;
-						sendMessageToTabs(msg, false, null, false, false, timeoutBot)
-						
-						break;
-					}
+			console.log("Chat true");
+			const botReplyEvents = settings['botReply'] || [];
+			for (const id of botReplyEvents) {
+				const event = settings[`botReplyMessageEvent${id}`];
+				const command = settings[`botReplyMessageCommand${id}`]?.textsetting;
+				const response = settings[`botReplyMessageValue${id}`]?.textsetting;
+				
+				if (!event?.setting || !command || !response) continue;
+				
+				const isFullMatch = settings.botReplyMessageFull;
+				const messageMatches = isFullMatch ? 
+				  data.chatmessage === command :
+				  data.chatmessage.includes(command);
+				  
+				if (!messageMatches) continue;
+				
+				// Check source restrictions
+				const sources = settings[`botReplyMessageSource${id}`]?.textsetting;
+				if (sources?.trim()) {
+				  const sourceList = sources.split(',').map(s => s.trim().toLowerCase());
+				  if (!sourceList.includes(data.type?.trim().toLowerCase())) {
+					continue;
+				  }
+				}
+				
+				// Send response
+				const timeout = settings[`botReplyMessageTimeout${id}`]?.numbersetting || 0;
+				const msg = {
+				  response,
+				  ...(data.tid && !settings[`botReplyAll${id}`] && { tid: data.tid })
+				};
+				
+				sendMessageToTabs(msg, false, null, false, false, timeout);
+				break; // Stop after first match
+			}
+			  
+			const midiEvents = settings['midiCommand'] || [];
+			for (const id of midiEvents) {
+				const event = settings[`midievent${id}`];
+				const command = settings[`midicommand${id}`]?.textsetting;
+				const note = settings[`midinote${id}`]?.numbersetting;
+				const device = settings[`mididevice${id}`]?.numbersetting || "";
+				
+				if (!event?.setting || !command || !note) continue;
+				
+				const escapedCommand = command.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+				const regex = new RegExp(`^${escapedCommand}\\b|\\s${escapedCommand}\\b`, 'i');
+				
+				if (regex.test(data.chatmessage)) {
+					triggerMidiNote(parseInt(note), device);
+					break;
 				}
 			}
 		}
@@ -7363,7 +7502,9 @@ async function applyBotActions(data, tab = false) {
 
 	try {
 		// webhook for configured custom chat commands
-		for (var i = 1; i <= 20; i++) {
+		// 'chatevent', 'chatcommand', 'chatwebhook', 'chatcommandtimeout'
+		const chatCommand = settings['chatCommand'] || [];
+		for (const i of chatCommand) {
 			if (data.chatmessage && settings["chatevent" + i] && settings["chatcommand" + i] && settings["chatwebhook" + i]) {
 				let matches = false;
 				if (settings.chatwebhookstrict && (data.chatmessage === settings["chatcommand" + i].textsetting)) {
@@ -7425,9 +7566,14 @@ async function applyBotActions(data, tab = false) {
 	try {
 		
 		if (settings.allowLLMSummary && data.chatmessage && data.chatmessage.startsWith("!summary")){
-			return await processSummary(data);
+			if (settings.modLLMonly){
+				if (data.mod){
+					return await processSummary(data);
+				}
+			} else {
+				return await processSummary(data);
+			}
 		}
-		
 		if (settings.ollamaCensorBot){
 			try{
 				if (settings.ollamaCensorBotBlockMode){
@@ -7435,21 +7581,21 @@ async function applyBotActions(data, tab = false) {
 					if (data.chatmessage && data.chatmessage.length <= 3) {
 						// For very short messages, use the history-aware censoring
 						//try {
-							good = await censorMessageWithOllama(data); // # TODO: IMPROVE AND FIX.
+							good = await censorMessageWithLLM(data); // # TODO: IMPROVE AND FIX.
 							//good = await censorMessageWithHistory(data);
 						//} catch(e){
-						//	good = await censorMessageWithOllama(data);
+						//	good = await censorMessageWithLLM(data);
 						//}
 					} else {
 						// For longer messages, use the existing single-message censoring
-						good = await censorMessageWithOllama(data);
+						good = await censorMessageWithLLM(data);
 					}					
 					
 					if (!good){
 						return false;
 					}
 				} else {
-					censorMessageWithOllama(data);
+					censorMessageWithLLM(data);
 				}
 			} catch(e){
 				console.log(e); // ai.js file missing?
@@ -7457,7 +7603,13 @@ async function applyBotActions(data, tab = false) {
 		}
 		if (settings.ollama){
 			try{
-				processMessageWithOllama(data);
+				if (settings.modLLMonly){
+					if (data.mod){
+						processMessageWithOllama(data);
+					}
+				} else {
+					processMessageWithOllama(data);
+				}
 			} catch(e){
 				console.log(e); // ai.js file missing?
 			}
@@ -7555,6 +7707,7 @@ try {
 						setupMIDI(e.target._midiInput);
 					});
 					WebMidi.addListener("disconnected", function (e) {});
+					// Your MIDI outputs are now ready for triggering
 				});
 			} else {
 				try {
@@ -7569,6 +7722,38 @@ try {
 	}
 } catch (e) {
 	log(e);
+}
+
+function triggerMidiNote(note = 64, device=false) {
+    if (!WebMidi.enabled) {
+		try {
+			WebMidi.enable();
+			console.log("Midi enabled");
+		} catch (e) {
+			console.warn(e);
+		}
+	}
+    try {
+		if (settings.midiDeviceSelect?.optionsetting || device){
+			const selectedOutput = WebMidi.outputs.find(
+				(output) => output.name === (device || settings.midiDeviceSelect.optionsetting)
+			);
+			if (selectedOutput) {
+				selectedOutput.send([0x90, note, 127]);  // Note On
+				selectedOutput.send([0x80, note, 0]);    // Note Off
+			} else {
+				console.warn("MIDI device not found: "+(device || settings.midiDeviceSelect.optionsetting));
+			}
+		} else {
+			WebMidi.outputs.forEach(output => {
+				//output.playNote(note);
+				output.send([0x90, note, 127]);  // Note On
+				output.send([0x80, note, 0]);    // Note Off
+			});
+		}
+	} catch(e){
+		console.warn(e);
+	}
 }
 
 function midiHotkeysCommand(number, value) {
@@ -7641,35 +7826,43 @@ window.onload = async function () {
 		loadSettings(programmedSettings, true);
 	} else {
 		log("Loading settings from the main file into the background.js");
-		chrome.storage.sync.get(properties, function (item) {
+		chrome.storage.sync.get(properties, function (item) { // sync shouldn't have our settings ; just stream ID and current extension state
 			// we load this at the end, so not to have a race condition loading MIDI or whatever else. (essentially, __main__)
-			log("properties", item);
+			
+			//console.warn(item);
+			
+			//log("properties", item);
 			if (isSSAPP && item) {
-				loadSettings(item, false);
-			} else if (item && item.settings) {
+				loadSettings(item, false); 
+				return;
+			}
+			
+			if (item?.settings) {
 				// ssapp
+				alert("upgrading from old storage structure format to new...");
 				chrome.storage.sync.remove(["settings"], function (Items) {
 					// ignored
 					log("upgrading from sync to local storage");
 				});
-				chrome.storage.local.set({
-					// oh well; harmless
-					settings: item.settings
-				});
-				loadSettings(item, false);
-			} else {
 				chrome.storage.local.get(["settings"], function (item2) {
-					log("item2", item2);
-					if (item) {
-						if (item2 && item2.settings) {
-							if (item) {
-								item.settings = item2.settings;
-							} else {
-								item = item2;
-							}
-						}
+					if (item2?.settings){
+						item = [...item, ...item2];
+					}
+					if (item?.settings){
+						chrome.storage.local.set({
+							settings: item.settings
+						});
+					}
+					if (item){
 						loadSettings(item, false);
-					} else if (item2) {
+					}
+				});
+				
+			} else {
+				loadSettings(item, false);
+				chrome.storage.local.get(["settings"], function (item2) {
+					if (item2){
+						//console.warn(item2);
 						loadSettings(item2, false);
 					}
 				});
@@ -9968,11 +10161,7 @@ async function selectTickerFile() {
 	if (!isSSAPP){
 		fileHandleTicker = fileHandleTicker[0];
 	}
-	
-	//try {
-	//	fileContentTicker = await fileHandleTicker[0].getFile();
-	//	fileContentTicker = await fileHandleTicker.text();
-	//} catch (e) {}
+	 
 	try {
 		await loadFileTicker();
 	} catch(e){}

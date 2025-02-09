@@ -2,7 +2,7 @@
 
 For anyone who wants to create a custom theme/style/template for their chat stream, you can share them via adding them to this repository (in this folder) as a Pull Request.
 
-![image](https://user-images.githubusercontent.com/2575698/193437666-0f00ef2d-2932-41c4-95b4-9e132f06da83.png)
+<img src="https://github.com/user-attachments/assets/68b7075f-8205-41e6-9c2d-34863cd3dffe" style="width:250px;"><img src="https://user-images.githubusercontent.com/2575698/193437666-0f00ef2d-2932-41c4-95b4-9e132f06da83.png" style="width:250px;">
 
 ## Quick Start
 
@@ -20,9 +20,34 @@ Run themes from your local file system:
 file:///C:/path/to/your/theme.html?session=YOUR_SESSION_ID
 ```
 
-> **Important**: Always append the session parameter correctly, regardless of hosting method.
+> **Important**:
+ - Always append the session parameter correctly, regardless of hosting method.
+ - If Local Hosting, you may need to use &server mode if using this with OBS +v31
+
+## Available Themes
+
+### Themed Packages (with documentation)
+These themes include readme files, sample photos, and guides:
+
+- [Deuk's Theme](https://socialstream.ninja/themes/deuks_overlay)
+- [Windows3.1 Theme](https://socialstream.ninja/themes/Windows3.1)
+- [Neutron Theme](https://socialstream.ninja/themes/Neutron)
+
+### Simple Drop-in Themes
+Add `?session=XXXXXXX` to these URLs, replacing XXXXXXX with your session ID:
+
+- [Sample Theme](https://socialstream.ninja/sampleoverlay.html)
+- [Pretty Theme](https://socialstream.ninja/themes/pretty.html)
+- [t3nk3y's Theme](https://socialstream.ninja/themes/t3nk3y/)
+
+### YouTube-CSS compatible Theme Template:
+You can use a CSS designed for YouTube with our YouTube-structured overlay page:
+
+- [YouTube-CSS friendly Overlay here](https://socialstream.ninja/septapus)
+- [Create a custom style for it with Septapus](https://chatv2.septapus.com/)
 
 ## Theme Development Approaches
+Make your own custom theme. It's super easy when using an LLM AI service like Claude.ai 🤖
 
 ### Recommended: Modifying the Sample Overlay
 - Start with [sampleoverlay.html](https://socialstream.ninja/sampleoverlay.html)
@@ -50,6 +75,10 @@ file:///C:/path/to/your/theme.html?session=YOUR_SESSION_ID
    - Best for custom themes with AI assistance
    - For message structure details, see: [Message Structure Documentation](https://socialstream.ninja/landing#message-structure)
 
+4. **YouTube-structured CSS-only mods**
+   - You can use a CSS designed for YouTube with our YouTube-structured overlay page
+   - The [YouTube-CSS friendly Overlay is here](https://socialstream.ninja/septapus), which contains more information.
+
 > **Warning**: Direct modification of `dock.html` is not recommended due to its complexity and size.
 
 ## Testing Themes
@@ -62,20 +91,24 @@ file:///C:/path/to/your/theme.html?session=YOUR_SESSION_ID
 - Enable API support via app menu
 - Create custom test messages near the bottom of the page
 
-## Available Themes
+## OBS Compatibility Notes
+### OBS v31 and Iframe Limitations
+Starting with OBS v31, there are important considerations for custom themes:
 
-### Themed Packages (with documentation)
-These themes include readme files, sample photos, and guides:
+- Cross-origin iframes will not load as browser sources in OBS v31 on PC and Linux (this was already the case for Mac)
+- Custom themes using webRTC via VDO.Ninja iframes (hosted on vdo.socialstream.ninja) may be affected
 
-- [Deuk's Theme](https://socialstream.ninja/themes/deuks_overlay)
-- [Windows3.1 Theme](https://socialstream.ninja/themes/Windows3.1)
-- [Neutron Theme](https://socialstream.ninja/themes/Neutron)
+### Solutions and Workarounds
+1. **Official Theme Hosting**
+   - Submit your custom themes via PR to be hosted on socialstream.ninja
+   - Themes hosted on the official domain will work properly with OBS v31
+   - Approved PRs to main branch are automatically deployed and available via the website
 
-### Simple Drop-in Themes
-Add `?session=XXXXXXX` to these URLs, replacing XXXXXXX with your session ID:
-
-- [Sample Theme](https://socialstream.ninja/sampleoverlay.html)
-- [Pretty Theme](https://socialstream.ninja/themes/pretty.html)
+2. **WebSocket API Alternative**
+   - For cases where iframes aren't suitable, use the WebSocket API
+   - Enable with the `&server` parameter or such, as the code requires to trigger. You may need to enable it in the extension/menu as well.
+   - When using the Standalone app with local server option, use `&localserver&server` to utilize the local WebSocket server
+   - May require additional setup if the websocket listening code is not already configured in sample code to be used; see dock.html for reference in that case.
 
 ## Contributing
 
@@ -93,6 +126,7 @@ Benefits of contributing to the official repository:
 - SSL/HTTPS support
 - Consistent availability
 - Included in any granted access permissions
+- The P2P IFRAMES mode will work in OBS v31
 
 Alternatively, you can self-host using local files, just ensure proper session parameter usage.
 

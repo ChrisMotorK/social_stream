@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Poll - Social Stream Ninja</title>
-    <link rel="icon" href="./icons/favicon.ico" />
+    <link rel="icon" href="./favicon.ico" />
     <link rel="preload" href="./thirdparty/NotoColorEmoji.ttf" as="font" type="font/ttf" crossorigin="anonymous">
         <style>
         @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&family=Roboto:wght@400;700&family=Oswald:wght@400;700&family=Poppins:wght@400;600&family=Press+Start+2P&family=Merriweather:wght@400;700&family=Playfair+Display:wght@400;700&family=Courier+Prime:wght@400;700&display=swap');
@@ -677,12 +677,9 @@
                 processData(event.data.dataReceived.overlayNinja);
             }
         });
-		
-		
-		
 			var conCon = 1;
 			var socketserver = false;
-			var serverURL = "wss://io.socialstream.ninja/api";
+			var serverURL = urlParams.has("localserver") ? "ws://127.0.0.1:3000" : "wss://io.socialstream.ninja/api";
 			var reconnectionTimeout = null;
 			function setupSocket() {
 				// Clear any existing reconnection timeout
@@ -745,7 +742,7 @@
 			
 			var conConExtension = 1;
 			var socketserverExtension = false;
-			var serverURLExtension = "wss://io.socialstream.ninja/extension";
+			var serverURLExtension = urlParams.has("localserver") ? "ws://127.0.0.1:3000" : "wss://io.socialstream.ninja/extension";
 			var server2 = false;
 			var server3 = false;
 			var reconnectionTimeoutExtension = null;

@@ -5,7 +5,7 @@
 	<meta content="utf-8" http-equiv="encoding" />
 	<title>Social Stream - Hype Meter</title>
 	<meta name="title" content="Social Stream - Hype Meter" />
-	<link rel="icon" href="./icons/favicon.ico" />
+	<link rel="icon" href="./favicon.ico" />
 	<style>
 :root {
   /* Base values */
@@ -642,7 +642,7 @@ span.zero-width-parent img.zero-width-emote {
 	
 	var conCon = 1;
 	var socketserver = false;
-	var serverURL = "wss://io.socialstream.ninja";
+	var serverURL = urlParams.has("localserver") ? "ws://127.0.0.1:3000" : "wss://io.socialstream.ninja";
 
 	function setupSocket(){
 		socketserver.onclose = function (){
@@ -809,7 +809,7 @@ span.zero-width-parent img.zero-width-emote {
 					document.getElementById("parentHolder").classList.remove("hidden");
 					for (var i = 0; i<keys.length;i++){
 						if (keys[i]){
-							document.getElementById("hype").innerHTML += "<div class='sourceStatHolder'><img src='./sources/images/"+keys[i]+".png'><span data-viewers='true' data-type='"+keys[i]+"'></span><span data-chatters='true' data-type='"+keys[i]+"'>"+data.hype[keys[i]]+"</span></div>";
+							document.getElementById("hype").innerHTML += "<div class='sourceStatHolder'><img class='sourceicons' src='./sources/images/"+keys[i]+".png'><span data-viewers='true' data-type='"+keys[i]+"'></span><span data-chatters='true' data-type='"+keys[i]+"'>"+data.hype[keys[i]]+"</span></div>";
 						}
 					}
 				}
@@ -829,7 +829,7 @@ span.zero-width-parent img.zero-width-emote {
 							return;
 						}
 					} else {
-						document.getElementById("hype").innerHTML += "<div class='sourceStatHolder'><img src='./sources/images/"+type+".png'><span data-viewers='true' data-type='"+type+"'>"+viewers[type]+"</span><span data-chatters='true' data-type='"+type+"'></span></div>";
+						document.getElementById("hype").innerHTML += "<div class='sourceStatHolder'><img class='sourceicons' src='./sources/images/"+type+".png'><span data-viewers='true' data-type='"+type+"'>"+viewers[type]+"</span><span data-chatters='true' data-type='"+type+"'></span></div>";
 						
 					}
 					

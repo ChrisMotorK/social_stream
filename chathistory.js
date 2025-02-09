@@ -122,28 +122,39 @@ function formatTimestamp(timestamp) {
 }
 function renderMessages() {
     const searchTerm = searchInput.value.toLowerCase();
-    const filteredMessages = messages.filter(message =>
-        message.chatname.toLowerCase().includes(searchTerm) ||
-        message.type.toLowerCase().includes(searchTerm) ||
-        message.chatmessage.toLowerCase().includes(searchTerm)
-    );
-    messagesContainer.innerHTML = filteredMessages.map(message => `
-        <div class="message-wrapper" id="message-${message.id}">
-            <div class="message">
-                <img src="${message.chatimg}" alt="Avatar" class="avatar" data-error-hide="message">
-                <div class="message-content">
-                    <div class="message-header">
-                        <span class="user-name">${message.chatname}</span>
-                        <img src="./sources/images/${message.type}.png" alt="${message.type}" class="type-image" data-error-hide="self">
-                        <span class="timestamp">${formatTimestamp(message.timestamp)}</span>
+    console.log('Current messages array:', messages);
+    
+    const filteredMessages = searchTerm 
+        ? messages.filter(message => {
+            if (!message) return false;
+            return (message.chatname || '').toLowerCase().includes(searchTerm) ||
+                   (message.type || '').toLowerCase().includes(searchTerm) ||
+                   (message.chatmessage || '').toLowerCase().includes(searchTerm);
+        })
+        : messages;
+
+    console.log('Filtered messages:', filteredMessages);
+    
+    messagesContainer.innerHTML = filteredMessages.map(message => {
+        if (!message) return '';
+        return `
+            <div class="message-wrapper" id="message-${message.id}">
+                <div class="message">
+                    <img src="${message.chatimg || 'https://socialstream.ninja/unknown.png'}" alt="Avatar" class="avatar" data-error-hide="message">
+                    <div class="message-content">
+                        <div class="message-header">
+                            <span class="user-name">${message.chatname || 'Anonymous'}</span>
+                            ${message.type ? `<img src="https://socialstream.ninja/sources/images/${message.type}.png" alt="${message.type}" class="type-image" data-error-hide="self">` : ''}
+                            <span class="timestamp">${formatTimestamp(message.timestamp)}</span>
+                        </div>
+                        <p class="message-text">${message.chatmessage || ''}</p>
+                        ${message.contentimg ? `<img src="${message.contentimg}" alt="Content" class="content-image" data-error-hide="self">` : ''}
+                        ${message.hasDonation ? `<p class="donation">Donation: ${message.hasDonation}</p>` : ''}
                     </div>
-                    <p class="message-text">${message.chatmessage}</p>
-                    ${message.contentimg ? `<img src="${message.contentimg}" alt="Content" class="content-image" data-error-hide="self">` : ''}
-                    ${message.donation ? `<p class="donation">Donation: ${message.donation}</p>` : ''}
                 </div>
             </div>
-        </div>
-    `).join('');
+        `;
+    }).join('');
     messagesContainer.querySelectorAll('img').forEach(img => {
         img.addEventListener('error', handleImageError);
     });
@@ -151,16 +162,15 @@ function renderMessages() {
 }
 function handleImageError(event) {
     const img = event.target;
-    const errorBehavior = img.getAttribute('data-error-hide');
-    if (errorBehavior === 'message') {
-        const messageWrapper = img.closest('.message-wrapper');
-        if (messageWrapper) {
-            messageWrapper.style.display = 'none';
-        }
-    } else if (errorBehavior === 'self') {
-        img.style.display = 'none';
+    img.style.display = 'none';
+    
+    // If it's an avatar, replace with default placeholder
+    if (img.classList.contains('avatar')) {
+        img.src = 'https://socialstream.ninja/unknown.png';
+        img.style.display = 'block';
     }
 }
+
 searchInput.addEventListener('input', renderMessages);
 messagesContainer.addEventListener('scroll', () => {
     const scrollPosition = messagesContainer.scrollTop + messagesContainer.clientHeight;
@@ -188,9 +198,9 @@ function checkAndLoadMore() {
 function exportMessages(format) {
     const searchTerm = searchInput.value.toLowerCase();
     const filteredMessages = messages.filter(message =>
-        message.chatname.toLowerCase().includes(searchTerm) ||
-        message.type.toLowerCase().includes(searchTerm) ||
-        message.chatmessage.toLowerCase().includes(searchTerm)
+        message.chatname?.toLowerCase().includes(searchTerm) ||
+        message.type?.toLowerCase().includes(searchTerm) ||
+        message.chatmessage?.toLowerCase().includes(searchTerm)
     );
     let content = '';
     let filename = `chat_export_${new Date().toISOString()}.${format}`;
@@ -201,7 +211,7 @@ function exportMessages(format) {
         case 'tsv':
             content = 'ID\tTimestamp\tUsername\tType\tMessage\tDonation\n' +
                 filteredMessages.map(m =>
-                    `${m.id}\t${m.timestamp}\t${m.chatname}\t${m.type}\t${m.chatmessage}\t${m.donation || ''}`
+                    `${m.id}\t${m.timestamp}\t${m.chatname}\t${m.type}\t${m.chatmessage}\t${m.hasDonation || ''}`
                 ).join('\n');
             break;
         case 'html':
@@ -221,7 +231,7 @@ function exportMessages(format) {
                             <span class="username">${m.chatname}</span>
                             <span class="timestamp">${new Date(m.timestamp).toLocaleString()}</span>
                             <p>${m.chatmessage}</p>
-                            ${m.donation ? `<p>Donation: ${m.donation}</p>` : ''}
+                            ${m.hasDonation ? `<p>Donation: ${m.hasDonation}</p>` : ''}
                         </div>
                     `).join('')}
                 </body>
@@ -254,9 +264,10 @@ initDatabase()
         db = result;
         return loadMessages();
     })
-    .then(loadedMessages => {
+   .then(loadedMessages => {
         messages = loadedMessages;
         totalPages = 1;
+        console.log('Initial messages loaded:', loadedMessages);
         renderMessages();
         checkAndLoadMore();
     })
